@@ -1,0 +1,131 @@
+-- phpMyAdmin SQL Dump
+-- version 3.3.8.1
+-- http://www.phpmyadmin.net
+--
+-- Host: localhost
+-- Generation Time: May 08, 2011 at 08:46 PM
+-- Server version: 5.1.56
+-- PHP Version: 5.2.9
+
+SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+
+--
+-- Database: `odustcom_photography`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `instrument`
+--
+
+DROP TABLE IF EXISTS `instrument`;
+CREATE TABLE IF NOT EXISTS `instrument` (
+  `instrument_id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `nickname` varchar(255) DEFAULT NULL,
+  `serial` varchar(50) NOT NULL,
+  `long_descr` varchar(255) DEFAULT NULL,
+  `stolen` tinyint(1) DEFAULT '0',
+  PRIMARY KEY (`instrument_id`),
+  KEY `user_id` (`user_id`)
+) ENGINE=MyISAM  DEFAULT CHARSET=latin1 AUTO_INCREMENT=34 ;
+
+--
+-- Dumping data for table `instrument`
+--
+
+INSERT INTO `instrument` (`instrument_id`, `user_id`, `nickname`, `serial`, `long_descr`, `stolen`) VALUES
+(16, 16, 'thrhe', 'qdmlqn qlknvlln', 'lnln bkhihyo.ihln ', 0),
+(7, 13, 'u can', 'etttv', '4tbbbbb', 0),
+(20, 13, 'test', 'test', 'sm elvelvelkvelkvmelkvm', 0),
+(21, 13, 'rrffser', '1234567890', 'wwvwtrgrbreytytehndfndfndfndfnfndfnfndffffndfnfnefntentnyhnyhnytntytyyuhyddrstgfgdggsgdgtdgtdegthdtge5dthdyff\r\r\rgh\rj\rh\rh\r\rh\r', 0),
+(15, 16, 'th bass', '22335556', 'qlwvnlk nlfn lqf nq/lsf n', 0),
+(22, 19, 'rere', '1234', 'bass1', 0),
+(23, 13, 'some cat', '4567889', 'v5b4bbb4by4byby\rkjh\rkg\rhfgfdgd', 0),
+(24, 19, 'numnuts', '666', 'stupid stupid', 0),
+(26, 19, 'test', 'test', 'test', 0),
+(28, 13, 'fret', '345tefv', 'dcvaefvdvdvfdvdvvfdvas', 0),
+(29, 13, 'fret2', 'fvsvv', 'Cfffeefe', 0),
+(30, 19, 'new inst', '33344', 'desc', 0),
+(31, 19, 'sweffwe', 'wefqwef', 'qwefqefqf', 0),
+(32, 19, 'feve', 'efvev', 'efbebbttnnt', 0),
+(33, 19, 'wdvwvw', 'wrgrgrg2', 'e2geg2e2vge2ve2g', 0);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `report`
+--
+
+DROP TABLE IF EXISTS `report`;
+CREATE TABLE IF NOT EXISTS `report` (
+  `report_id` int(11) NOT NULL AUTO_INCREMENT,
+  `instrument_id` int(11) DEFAULT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `city` varchar(50) DEFAULT NULL,
+  `state` varchar(50) DEFAULT NULL,
+  `country` varchar(50) DEFAULT NULL,
+  `zip` varchar(50) NOT NULL,
+  `date_stolen` date NOT NULL,
+  `date_recovered` date DEFAULT NULL,
+  `status` varchar(10) DEFAULT NULL,
+  `description` text,
+  `reward` int(11) DEFAULT NULL,
+  `reward_bool` tinyint(1) DEFAULT NULL,
+  `phone` varchar(50) DEFAULT NULL,
+  `phone_bool` tinyint(1) DEFAULT NULL,
+  PRIMARY KEY (`report_id`),
+  KEY `user_id` (`user_id`)
+) ENGINE=MyISAM  DEFAULT CHARSET=latin1 AUTO_INCREMENT=23 ;
+
+--
+-- Dumping data for table `report`
+--
+
+INSERT INTO `report` (`report_id`, `instrument_id`, `user_id`, `city`, `state`, `country`, `zip`, `date_stolen`, `date_recovered`, `status`, `description`, `reward`, `reward_bool`, `phone`, `phone_bool`) VALUES
+(16, 24, 19, 'barftown', 'carolina', 'usa bitch!', '123456', '2010-12-29', '0000-00-00', 'active', 'suck it', 0, 0, NULL, NULL),
+(17, 27, 19, 'new jack city', 'new jack state', 'us', '44056', '2007-12-10', '0000-00-00', 'active', 'wow!!!', 0, 0, NULL, NULL),
+(15, 17, 13, 'citfuc', 'stefjj', 'ctryfmmmm', 'zipjjjj', '2010-12-01', '0000-00-00', 'active', 'addfrt', 0, 0, NULL, NULL),
+(18, 7, 13, 'SAN MATEO', 'CA', 'USA', '94403', '2011-03-24', NULL, 'active', 'bla bla', 0, 0, NULL, NULL),
+(19, 26, 19, 'defge', 'efbee', 'ewfvqevqegrv', 'qereqv', '2011-03-06', NULL, 'active', 'evqevqevq', 0, 0, NULL, NULL),
+(20, 23, 13, 'san francisco', 'ca', 'usa', '94403', '2011-03-29', NULL, 'active', 'some desc', 0, 0, NULL, NULL),
+(21, 22, 19, 'erfwrf', 'seswef', 'wefe2', 'wefwqef', '2011-05-11', NULL, 'active', 'wefw', 0, 0, NULL, NULL),
+(22, 31, 19, 'dfvw', 'asv', 'asDVwv', 'WDVwv', '2011-05-16', '0000-00-00', 'active', 'SDVdsv', 0, 0, NULL, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `user`
+--
+
+DROP TABLE IF EXISTS `user`;
+CREATE TABLE IF NOT EXISTS `user` (
+  `username` varchar(25) NOT NULL,
+  `password` varchar(256) DEFAULT NULL,
+  `first_name` varchar(25) DEFAULT NULL,
+  `last_name` varchar(25) DEFAULT NULL,
+  `email` varchar(50) NOT NULL,
+  `role` varchar(25) NOT NULL DEFAULT 'user',
+  `user_id` int(11) NOT NULL AUTO_INCREMENT,
+  `status` varchar(50) DEFAULT 'inactive',
+  `activation_key` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`user_id`)
+) ENGINE=MyISAM  DEFAULT CHARSET=latin1 AUTO_INCREMENT=20 ;
+
+--
+-- Dumping data for table `user`
+--
+
+INSERT INTO `user` (`username`, `password`, `first_name`, `last_name`, `email`, `role`, `user_id`, `status`, `activation_key`) VALUES
+('user2', 'q«.+ŒÑ³ºï\\MÓ¨', 'just', 'somedude', 'terrancebutler@hotmail.com', 'contributor', 16, 'active', 'e9ee273ecd62fb63e32c364ddeb160af3995803b'),
+('user', 'F7ô6$¦ÕËÆ$sF±]', 'paco', 'theDude', 'allankhall@gmail.com', 'admin', 13, 'active', '419523e3400c11a62d5afe5deb01e1c9e581f970'),
+('jkarew', '±e›P/½åY_ôoJÕ)Þ', 'Jason', 'Karew', 'jkarew@gmail.com', 'contributor', 17, 'active', '6bf10597c4cb6fa34125d84322f086b7729e640f'),
+('user3', 'q«.+ŒÑ³ºï\\MÓ¨', 'another', 'testuserq', 'paco@odust.com', 'user', 18, 'active', '5f9d94bcb01a4a6590586fa8da6e06da6923a707'),
+('pacobass', 'ã`e¸Í.ø!ý¼Ä€', 'myname', 'last', 'paco@allankhall.com', 'contributor', 19, 'active', '0daf42da36b517c6601903faab8843d906aec329');

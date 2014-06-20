@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" 
+					autoDrawBackground="true"
+					creationComplete = "init()">
+
+		
+		<fx:Script>
+			<![CDATA[
+				import com.pacobass.amfobject.pictureData;
+
+				import com.pacobass.component.contributor.PictureTitleWindow;
+
+				import com.pacobass.util.Constant;
+				
+				
+				import mx.controls.Alert;
+				import mx.core.IFlexDisplayObject;
+				import mx.managers.PopUpManager;
+
+		
+				
+				private function init():void{
+
+				}
+				
+
+				
+
+
+				
+				private function scaleImageToMaxDimension(img:Image, maxWidth:Number, maxHeight:Number):void {
+					var scaleH:Number=1, scaleV:Number=1;
+					if (img.content.height > maxHeight) {
+						scaleV = maxHeight / img.content.height;
+					}
+					if (img.content.width > maxWidth) {
+						scaleH = maxWidth / img.width;
+					}
+					img.scaleX = img.scaleY = Math.min(scaleH, scaleV);
+
+					
+				}
+				private function showPic(uri:String, serial:String):void{
+					var pictureTW:PictureTitleWindow = new PictureTitleWindow();
+					pictureTW = PictureTitleWindow(PopUpManager.createPopUp(this,PictureTitleWindow,true));
+					pictureTW.uri = uri;
+					//PopUpManager.centerPopUp(pictureTW);
+					pictureTW.x = 100;						pictureTW.y = 100;
+					pictureTW.title = "serial: " + serial;
+						
+				}
+
+				
+			]]>
+		</fx:Script>
+
+		<mx:Image source = "{data.fullPath}" id = "mypic" 
+				  click = "showPic(data.fullPath, data.serial)"
+				  complete="scaleImageToMaxDimension(mypic,150,150)">
+		</mx:Image>
+
+
+
+	
+</s:ItemRenderer>

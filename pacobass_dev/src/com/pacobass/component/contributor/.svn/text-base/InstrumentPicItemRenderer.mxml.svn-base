@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" 
+				autoDrawBackground="true"
+				creationComplete = "init()">
+	<fx:Metadata>
+		[Event(name="PictureListChangeEvent", type = "com.pacobass.event.instrument.PictureListChangeEvent")]
+	</fx:Metadata>
+
+	<fx:Script>
+		<![CDATA[
+			import com.pacobass.amfobject.pictureData;
+			import com.pacobass.amfobject.pictureData2;
+			import com.pacobass.component.contributor.PictureTitleWindow;
+			import com.pacobass.event.instrument.PictureListChangeEvent;
+			import com.pacobass.util.Constant;
+			
+			import flash.net.FileReference;
+			
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.remoting.RemoteObject;
+
+			private var fileRef:FileReference;			
+			
+			private function init():void{
+				fileRef = new FileReference();
+				fileRef.addEventListener(Event.SELECT, fileSelected);
+				fileRef.addEventListener(ProgressEvent.PROGRESS, progressBarEVT);
+				fileRef.addEventListener(Event.COMPLETE, uploadComplete);
+			}
+
+			private function addPic(uri:String, serial:String):void{
+				if(uri == "pic/addpic.jpg"){
+				//	file browse requires museclick so cant call canupload
+					//here which will return false no matter what
+				//	zendAMFUploader.canUpload(data.instrumentID);
+					fileRef.browse(Constant.allTypes);
+				}else{
+					
+					var pictureTW:PictureTitleWindow = new PictureTitleWindow();
+					pictureTW = PictureTitleWindow(PopUpManager.createPopUp(this,PictureTitleWindow,true));
+					pictureTW.uri = uri;
+					//PopUpManager.centerPopUp(pictureTW);
+					pictureTW.x = 100;
+					pictureTW.y = 100;
+					pictureTW.title = "serial: " + serial;
+
+				}
+			}
+			
+			private function canUploadHandler(e:ResultEvent):void{
+				var upload:Boolean = e as Boolean;
+				if (upload){
+					//fileRef.browse(Constant.allTypes);
+				}else{
+					Alert.show("You have reached the maximum number of uploads for this instrument. Please delete a picture before uploading another");
+				}
+				
+			}
+			
+			private function fileSelected(event:Event):void{
+				try{
+					fileRef.load();
+				}catch (error:Error){
+					Alert.show("Unable to upload file.");
+				}
+			}
+			
+			private function progressBarEVT(evt:ProgressEvent):void {
+				progressBar.visible = true;
+			}
+			
+			private function uploadComplete(event:Event):void{
+				//get filename, instrument id, and picdata:byteArray
+				var data:ByteArray = new ByteArray();
+				fileRef.data.readBytes(data,0,fileRef.data.length);
+				var picture:pictureData = new pictureData();
+				picture.fileName = fileRef.name;
+				picture.fileData = data;
+
+				var instd:int = this.data.instrumentID;
+				if (fileRef.size < 2097152){
+					zendAMF.uploadPic(instd, picture);
+					progressBar.visible = false;
+				}else{
+					Alert.show("File exceeds the 2MB uplaod limit");
+				}
+			}
+			
+			private function onError(err:FaultEvent):void {
+				Alert.show(Constant.GENERAL_ERROR);
+			}
+			
+			private function uploadHandler(e:ResultEvent):void{
+				dispatchEvent(new PictureListChangeEvent(data.instrumentID));
+			}
+			
+			private function deleteHandler(e:ResultEvent):void{
+				var success:Boolean = e.result as Boolean;
+				if(success){
+				}else{
+					Alert.show("did not delete!");
+				}
+			}
+			
+			private function scaleImageToMaxDimension(img:Image, maxWidth:Number, maxHeight:Number):void {
+				var scaleH:Number=1, scaleV:Number=1;
+				if (img.content.height > maxHeight) {
+					scaleV = maxHeight / img.content.height;
+				}
+				if (img.content.width > maxWidth) {
+					scaleH = maxWidth / img.width;
+				}
+				img.scaleX = img.scaleY = Math.min(scaleH, scaleV);
+				if (data.fullPath == "pic/addpic.jpg"){
+					progressBar.width = 150;
+				}
+			
+			}
+			private function displayDeleteBTN(display:Boolean, e:MouseEvent):void{
+				if (data.picID > 0){
+				deleteBTN.visible = display;
+				}
+			}
+			private function deletePicture($picID:int):void{
+				deleteBTN.visible = false;
+				if(zendAMF.deletePicture($picID)){
+					dispatchEvent(new PictureListChangeEvent(data.instrumentID));
+				}	
+			}
+
+
+		]]>
+	</fx:Script>
+	<!--<s:Label text="{data}"/>-->
+	<mx:Image source = "{data.fullPath}" id = "mypic" 
+			click = "addPic(data.fullPath, data.serial)"
+			complete="scaleImageToMaxDimension(mypic,150,150)"
+			rollOver = "displayDeleteBTN(true, event)"
+			rollOut = "displayDeleteBTN(false, event)" >
+	</mx:Image>
+	<mx:ProgressBar id="progressBar"
+			indeterminate="true"
+			width = "0"
+			visible="false"
+			depth = "50000"/>
+	<mx:Button label="delete" id = "deleteBTN"
+			creationComplete="deleteBTN.y = 0;deleteBTN.x=0;"
+			visible = "false"
+			rollOver = "displayDeleteBTN(true, event)"
+			rollOut = "displayDeleteBTN(false, event)"
+			click = "deletePicture(data.picID)">
+	</mx:Button>
+
+	<fx:Declarations>
+		
+		<mx:RemoteObject 
+				id="zendAMF" 
+				destination="zend" 
+				showBusyCursor="true" 
+				source="uploaderFunctions">
+			<mx:method 
+					name="uploadPic" 
+					result="uploadHandler(event)"  
+					fault="onError(event)">
+				<mx:arguments>
+					<instrumentid>
+						{null}
+					</instrumentid>
+					<picture>
+						{null}
+					</picture>
+				</mx:arguments>
+			</mx:method>
+			<mx:method 
+					name="deletePicture" 
+					result="deleteHandler(event)"  
+					fault="onError(event)">
+				<mx:arguments>
+					<pictureid>
+						{null}
+					</pictureid>
+				</mx:arguments>
+			</mx:method>
+		</mx:RemoteObject>
+		<mx:RemoteObject 
+			id="zendAMFUploader" 
+			destination="zend" 
+			showBusyCursor="true" 
+			source="uploaderFunctions">
+			<mx:method 
+				name="canUpload" 
+				result="canUploadHandler(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<instrumentid>
+						{null}
+					</instrumentid>
+				</mx:arguments>
+			</mx:method>
+		</mx:RemoteObject>
+	</fx:Declarations>
+
+
+	
+</s:ItemRenderer>

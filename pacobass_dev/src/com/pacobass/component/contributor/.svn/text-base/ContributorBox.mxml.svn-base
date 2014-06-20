@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 width="100%" height="100%"
+		xmlns:akh_contributor="com.pacobass.component.contributor.*"
+		creationComplete = "init()">
+
+	<fx:Script>
+		<![CDATA[
+			import com.pacobass.amfobject.instrumentData;
+			import com.pacobass.component.contributor.AddInstrumentBox;
+			import com.pacobass.component.contributor.EditInstrumentBox;
+			import com.pacobass.component.contributor.EditReportBox;
+			import com.pacobass.component.contributor.ReportMap;
+			import com.pacobass.component.contributor.ViewInstrumentBox;
+			import com.pacobass.event.homecomponent.InstrumentDGHelperEvent;
+			import com.pacobass.event.InstrumentHelperEvent;
+			import com.pacobass.event.leftmenu.instbbCLKEvent;
+			import com.pacobass.util.Constant;
+
+			import mx.controls.Alert;
+			import mx.effects.WipeDown;
+			import mx.effects.WipeUp;
+
+			private function init():void{
+			}
+			//change canvas
+			public function showCanvas(canvas:String):void{
+				if (canvas == Constant.INSTBB_VIEW){
+					instrumentBox.redrawDataGrid();
+					instrumentStack.selectedChild = instruments;
+				}
+				if (canvas == Constant.INSTBB_ADD){
+					instrumentStack.selectedChild = add_instrument;	
+					//reset form on add instrument show
+					//addInstrumentBox.resetForm();
+				}
+			//	if (canvas == Constant.INSTBB_CRETEALERT)instrumentStack.selectedChild = createAlert;	
+				if (canvas == Constant.INSTBB_VIEWALERT)instrumentStack.selectedChild = viewAlert;
+				if (canvas == "viewInstrumentBox")instrumentStack.selectedChild = viewInstrumentBox;
+				if (canvas == "editInstrumentBox")instrumentStack.selectedChild = editInstrumentBox;
+				if (canvas == "createReportBox")instrumentStack.selectedChild = createReportBox;
+				if (canvas == "editReportBox")instrumentStack.selectedChild = editReportBox;
+				}
+				
+				
+			//change canvas when child component button is clicked	
+			private function instrumentHelperHandler(e:InstrumentHelperEvent):void{
+				if (e.button == Constant.CANCEL_LINK){
+					showCanvas(Constant.INSTBB_VIEW);
+				}
+			}
+			
+				
+			private function instrumentDGHelperHandler(e:InstrumentDGHelperEvent):void{
+				if (e.button == Constant.INSTDGBB_VIEW){		
+					viewInstrumentBox.instrument = e.instrument;
+					showCanvas("viewInstrumentBox");
+				}else if(e.button == Constant.INSTDGBB_EDIT){
+					editInstrumentBox.instrument = e.instrument;
+					showCanvas("editInstrumentBox");
+				}else if(e.button == Constant.INSTDGBB_CREATEALERT){
+					createReportBox.instrument = e.instrument;
+					showCanvas("createReportBox");
+				}else if(e.button == Constant.INSTDGBB_EDITALERT){
+					editReportBox.instrument = e.instrument;
+					showCanvas("editReportBox");
+				}
+			}
+				
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<mx:WipeDown id="wipe_Down" duration = "500" />
+		<mx:WipeUp id = "wipe_Up" duration = "500" />
+	</fx:Declarations>
+	<mx:ViewStack id="instrumentStack" 
+			width="100%" height="100%">
+		<mx:Canvas id= "instruments"
+				showEffect = "{wipe_Down}" 
+				hideEffect="{wipe_Up}">
+			<akh_contributor:InstrumentsBox
+					id = "instrumentBox"
+					InstrumentDGHelperEvent = "instrumentDGHelperHandler(event)"/>
+		</mx:Canvas>
+            
+		<mx:Canvas id = "add_instrument"
+				showEffect = "{wipe_Down}" 
+				hideEffect="{wipe_Up}">
+            <akh_contributor:AddInstrumentBox
+					id = "addInstrumentBox"
+					instrumentHelper = "instrumentHelperHandler(event)"/>
+		</mx:Canvas>
+
+		<mx:Canvas id="instrumentDetail"
+				showEffect = "{wipe_Down}" 
+				hideEffect="{wipe_Up}">
+			<mx:Label text="INSTRUMENT DETAIL COMING JAN 2011"/>
+		</mx:Canvas>
+            
+		<mx:Canvas id="viewAlert"
+				showEffect = "{wipe_Down}" 
+				hideEffect="{wipe_Up}">
+			<mx:Label text="STOLEN ALERTS"/>
+			<akh_contributor:ReportMap id = "reportBox"/>
+		</mx:Canvas>
+            				
+		<akh_contributor:ViewInstrumentBox
+				id = "viewInstrumentBox"
+               	showEffect = "{wipe_Down}" 
+				hideEffect="{wipe_Up}"
+				instrumentHelper = "instrumentHelperHandler(event)" />
+           
+		<akh_contributor:EditInstrumentBox
+				id = "editInstrumentBox"
+               	showEffect = "{wipe_Down}" 
+				instrumentHelper = "instrumentHelperHandler(event)"/>
+					
+		<!--<akh_contributor:CreateReportBox
+                id = "createReportBox"
+                showEffect = "{wipe_Down}" 
+				hideEffect="{wipe_Up}" 
+				instrumentHelper = "instrumentHelperHandler(event)"/>-->
+		<akh_contributor:CreateReportBox
+			id = "createReportBox"
+			showEffect = "{wipe_Down}" 
+			hideEffect="{wipe_Up}" 
+			instrumentHelper = "instrumentHelperHandler(event)"/>
+		
+					
+		<akh_contributor:EditReportBox
+               	id = "editReportBox"
+               	showEffect = "{wipe_Down}" 
+				instrumentHelper = "instrumentHelperHandler(event)"/>
+	</mx:ViewStack>
+
+</mx:VBox>

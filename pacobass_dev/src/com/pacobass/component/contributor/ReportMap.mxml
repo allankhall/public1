@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:gmaps="com.google.maps.*"
+		 width="300" height="300"
+		 >
+	<s:layout>
+		<s:HorizontalLayout/>
+	</s:layout>
+
+	<fx:Script>
+		<![CDATA[
+			import com.google.maps.*;
+			import com.google.maps.LatLng;
+			import com.google.maps.Map;
+			import com.google.maps.MapEvent;
+			import com.google.maps.MapType;
+			import com.pacobass.util.Constant;
+			
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			
+			private function showmap(event:Event):void {
+				Security.allowDomain("maps.googleapis.com/maps/flashapi");
+				Security.allowInsecureDomain("maps.googleapis.com");
+				Security.allowInsecureDomain("google.com"); 
+				Security.allowDomain("google.com");
+				
+				//Security.loadPolicyFile("http://www.asylum.com/crossdomain.xml");
+			//	this.mymap.setCenter(new LatLng(40.736072,-73.992062), 14, MapType.NORMAL_MAP_TYPE);
+				//var myimg:Image = new Image();
+				//mymap = myimg;
+				//var bm:Bitmap = mymap.getPrintableBitmap();
+				//myimg.source = bm;
+						
+			}
+		]]>
+	</fx:Script>
+	<!--<gmaps:Map id="mymap" width="50%" height="50%" key="ABQIAAAAdqhTWe-Va6NKmCnqtKJJfRT2yXp_ZAY8_ufC3CFXhHIE1NvwkxTsyTEjaFv08kHXF9z4-Hx0L1t9SQ" sensor="true" mapevent_mapready="showmap(event)"/>-->
+	<mx:Image id = "myimg" width="50%" height="50%"/>
+
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	<!--	<gmaps:Map id="mymap" width="100%" height="100%" key="{Constant.GOOGLE_MAPS_KEY}" sensor="true" mapevent_mapready="showmap(event)"/>-->     
+
+	</fx:Declarations>
+</s:Group>

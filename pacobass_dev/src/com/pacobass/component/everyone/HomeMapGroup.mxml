@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:gmaps="com.google.maps.*"
+		 creationComplete = "init()"
+		 >
+	<fx:Metadata>
+		[Event(name="clicked", type="com.pacobass.event.PMarkerClickEvent")]
+		[Event(name="rollover", type="com.pacobass.event.PMarkerClickEvent")]
+		[Event(name="rollout", type="com.pacobass.event.PMarkerClickEvent")]
+	</fx:Metadata>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.google.maps.InfoWindowOptions;
+			import com.google.maps.LatLng;
+			import com.google.maps.Map3D;
+			import com.google.maps.MapEvent;
+			import com.google.maps.MapMouseEvent;
+			import com.google.maps.MapOptions;
+			import com.google.maps.MapType;
+			import com.google.maps.View;
+			import com.google.maps.controls.MapTypeControl;
+			import com.google.maps.controls.NavigationControl;
+			import com.google.maps.geom.Attitude;
+			import com.google.maps.overlays.Marker;
+			import com.google.maps.overlays.MarkerOptions;
+			import com.pacobass.amfobject.pMarkerData;
+			import com.pacobass.event.PMarkerClickEvent;
+			import com.pacobass.util.Constant;
+			import com.pacobass.util.PMapMarker;
+			
+			import mx.controls.Alert;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			private function init():void{
+				stolenPic.visible = false;
+			}
+			
+			private function markerClickedHandler(event:PMarkerClickEvent):void{
+				//throw this again so parent can change canvas
+				var pmd:pMarkerData = new pMarkerData();
+				pmd = event.pMarkerD as pMarkerData;
+				dispatchEvent(new PMarkerClickEvent("clicked",pmd, true));
+				
+			}
+			private function markerRollOutHandler(event:PMarkerClickEvent):void{
+				stolenPic.visible = false;
+				
+			}
+			private function markerRollOverHandler(event:PMarkerClickEvent):void{
+				var pmd:pMarkerData = new pMarkerData();
+				pmd = event.pMarkerD as pMarkerData;
+				stolenPic.source = pmd.picurl;
+				stolenPic.visible = true;				
+			}
+			
+			private function onMapReady(event:MapEvent):void {
+				alertsmap.addControl(new MapTypeControl());
+				alertsmap.addControl(new NavigationControl());
+				
+				zendAMF.getReports(0);
+				
+				
+			}
+			
+			
+			private function onGetReportsResult(event:ResultEvent):void{
+				
+				var reports:Array = new Array();
+				reports = event.result as Array;
+				var reportTmp:Array = new Array();
+				for (var idx:int = 0; idx < reports.length; idx++){
+					var pMarkerD:pMarkerData = new pMarkerData();
+					pMarkerD = reports[idx] as pMarkerData;
+					var pmarker:PMapMarker= new PMapMarker(pMarkerD, new LatLng(reports[idx].lat, reports[idx].lng), new MarkerOptions({draggable:false}));
+					pmarker.addEventListener(PMarkerClickEvent.CLICKED, markerClickedHandler);
+					pmarker.addEventListener(PMarkerClickEvent.ROLL_OUT, markerRollOutHandler);
+					pmarker.addEventListener(PMarkerClickEvent.ROLL_OVER, markerRollOverHandler);
+					
+					
+					alertsmap.addOverlay(pmarker);
+				}
+			}
+			
+			public function resetView():void{
+				//	Alert.show("jjj");
+			}
+			
+			/**
+			 * alert on error from service call
+			 * @private
+			 */
+			private function onError(err:FaultEvent):void {
+				//Alert.show(err.message.toString(),"ERROR!");
+				Alert.show(Constant.GENERAL_ERROR);
+			}
+			
+			private function onMapPreinitialize(event:MapEvent):void {
+				var myMapOptions:MapOptions = new MapOptions();
+				myMapOptions.zoom = 3.5;
+				myMapOptions.center = new LatLng(40.756054, -99.986951);
+				myMapOptions.mapType = MapType.HYBRID_MAP_TYPE;
+				myMapOptions.viewMode = View.VIEWMODE_PERSPECTIVE;
+				myMapOptions.attitude = new Attitude(-15,10,-45);
+				alertsmap.setInitOptions(myMapOptions);
+			}
+			public function hideMap():void{
+				//	Alert.show("hidemap");
+				//	alertsmap.clearOverlays();
+				//	this.removeChild(alertsmap);
+				//	alertsmap.visible=false;
+				//	alertsmap.unload();
+				
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<mx:RemoteObject 
+			id="zendAMF" 
+			destination="zend" 
+			showBusyCursor="true" 
+			source="reportFunctions">
+			<mx:method 
+				name="getReports" 
+				result="onGetReportsResult(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<range>
+						{null}
+					</range>	
+				</mx:arguments>
+			</mx:method>
+		</mx:RemoteObject>
+	</fx:Declarations>
+	<mx:Text text = "DEMO ACCOUNT: username -> 'pacobass', password -> 'pacobass'" y="26" fontWeight="bold" color="#C72018" x="10"/>
+	<s:SkinnableContainer>
+		
+		<maps:Map3D xmlns:maps="com.google.maps.*" mapevent_mappreinitialize="onMapPreinitialize(event)" mapevent_mapready="onMapReady(event)" id="alertsmap" 
+					width="525" height="375" key="ABQIAAAAdqhTWe-Va6NKmCnqtKJJfRTJgbA5_8XGz5Krgmb_EQeHeNXgMhRKFmTsOwZIJzP3GrHSEbtT4frm3w" sensor="true"/>
+		
+		<mx:Image id = "stolenPic" x = "550" y = "25"
+				  height = "200"
+				  width = "200"
+				  source="images/pacobass22monorail.jpg">
+			
+		</mx:Image>
+	</s:SkinnableContainer>
+</s:Group>

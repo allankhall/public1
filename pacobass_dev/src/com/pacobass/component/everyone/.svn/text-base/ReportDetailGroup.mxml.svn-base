@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 creationComplete="init()"
+		 hide = "hideAll()"
+		 show = "showAll()">
+	<fx:Metadata>
+		[Event(name="dismiss", type="com.pacobass.event.ReportDetailGroupEvent")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.pacobass.amfobject.instrumentData;
+			import com.pacobass.amfobject.pMarkerData;
+			import com.pacobass.amfobject.pictureData2;
+			import com.pacobass.amfobject.reportData;
+			import com.pacobass.component.everyone.SightingFormTitleWindow;
+			import com.pacobass.event.ReportDetailGroupEvent;
+			import com.pacobass.util.Constant;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.components.TitleWindow;
+			import mx.managers.PopUpManager;
+
+
+
+			
+			[Bindable]
+			private var _instrumentPictureURIs:ArrayCollection;
+			[Bindable]
+			private var _instrumentid:Number;
+			private var _pMarkerD:pMarkerData;
+			private var _instrumentD:instrumentData;
+			private var _reportD:reportData;
+
+			[Bindable]
+			public function get reportD():reportData
+			{
+				return _reportD;
+			}
+
+			public function set reportD(value:reportData):void
+			{
+				_reportD = value;
+			}
+
+			[Bindable]
+			public function get instrumentD():instrumentData
+			{
+				return _instrumentD;
+			}
+
+			public function set instrumentD(value:instrumentData):void
+			{
+				_instrumentD = value;
+			}
+
+			[Bindable]
+			public function get pMarkerD():pMarkerData
+			{
+				return _pMarkerD;
+			}
+
+			public function set pMarkerD(value:pMarkerData):void
+			{
+				_pMarkerD = value;
+			}
+			
+			[Bindable]
+			public function set instrumentPictureURIs(instrumentPictureURIs:ArrayCollection):void{
+				_instrumentPictureURIs = instrumentPictureURIs;
+				updatePictureURIs();
+			}
+			public function get instrumentPictureURIs():ArrayCollection{
+				return _instrumentPictureURIs;
+				//return _pictureURIs;
+			}
+			
+			[Bindable]
+			public function set instrumentid(instid:Number):void{
+				_instrumentid = instid;
+				reportAMF.getReport(instid);
+				zendAMF.getPictureURI(instid, false);
+				zendAMF.getInstrument(instid);
+			}
+			public function get instrumentid():Number{
+				return _instrumentid;
+			}
+			
+			public function init():void{
+				hideAll();
+				
+				pMarkerD = new pMarkerData();
+				_instrumentPictureURIs = new ArrayCollection();
+				instrumentD = new instrumentData();
+				_reportD = new reportData();
+			}
+			private function onError(err:FaultEvent):void {
+				Alert.show(Constant.GENERAL_ERROR);
+			}
+
+			private function getPictureURIHandler(e:ResultEvent):void{
+				//instrumentPicURIs = e.result as Array;
+				//map aaray to arraycollection because no such type in php
+				var pic:Array = new Array();
+				pic = e.result as Array;
+				
+				var picTmp:Array = new Array();
+				for (var idx:int = 0; idx < pic.length; idx++){
+					var pd:pictureData2 = new pictureData2();
+					pd.fullPath = pic[idx].fullPath;
+					pd.picID = pic[idx].picID;
+					pd.instrumentID = pic[idx].instrumentID;
+					pd.serial = pic[idx].serial;
+					picTmp.push(pd);
+				}
+				_instrumentPictureURIs = new ArrayCollection(picTmp);				
+			}
+			private function updatePictureURIs():void{
+				picDGRP.invalidateDisplayList();		
+			}
+			private function getInstrumentHandler(e:ResultEvent):void{
+				instrumentD = e.result as instrumentData;
+				fillReportDetails();
+			}
+			
+			private function fillReportDetails():void{
+				
+			}
+			private function hideAll():void{
+				//Alert.show("hide");
+				picDGRP.visible = false;
+				reportRT.visible = false;
+			}
+			private function showAll():void{
+				//Alert.show("show");
+				picDGRP.visible = true;
+				reportRT.visible = true;
+			}
+			private function onGetReportResult(event:ResultEvent):void{
+				pMarkerD = event.result as pMarkerData;
+				
+			}
+			
+			public function leavePage():void{
+				dispatchEvent(new ReportDetailGroupEvent("dismiss"));
+			}
+			
+			private function showSightingForm():void{
+				var sightingForm:SightingFormTitleWindow = new SightingFormTitleWindow();
+				sightingForm.instrumentid = instrumentid;
+				sightingForm.reportid = pMarkerD.reportid;
+				PopUpManager.addPopUp(sightingForm, this, true);
+				PopUpManager.centerPopUp(sightingForm);
+
+			}
+
+		]]>
+	</fx:Script>
+
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+
+	
+		
+
+
+
+	<s:Scroller left="25" right="25" top="1" bottom="50">
+		<s:DataGroup 
+			id = "picDGRP" dataProvider="{_instrumentPictureURIs}" 
+			itemRenderer="com.pacobass.component.everyone.PublicPictureItemRenderer">
+			<s:layout>
+				<s:HorizontalLayout>
+				</s:HorizontalLayout>
+			</s:layout>
+		</s:DataGroup>
+	</s:Scroller>
+
+	<s:RichText id = "reportRT" y="175" width = "500">
+		<s:p>
+{instrumentD.nickname} : {instrumentD.serial}
+{instrumentD.description}
+
+Date Stolen : {pMarkerD.dateStolen}
+Stolen From : {pMarkerD.addressLine1}
+{pMarkerD.addressLine2}
+{pMarkerD.city}, {pMarkerD.state} {pMarkerD.zip}
+
+Notes : {pMarkerD.description}
+		</s:p>
+	</s:RichText>
+	<mx:Button id = "exitBTN" click="leavePage()" label="I haven't seen this instrument" y = "400"/>
+	<mx:Button id = "sightingBTN" click="showSightingForm()" label="I have seen this instrument" y = "400" x= "200"/>
+	<fx:Declarations>
+	<mx:RemoteObject 
+		id="zendAMF" 
+		destination="zend" 
+		showBusyCursor="true" 
+		source="instrument_functions">
+		<mx:method 
+			name="getPictureURI" 
+			result="getPictureURIHandler(event)"  
+			fault="onError(event)">
+			<mx:arguments>
+				<instrumentid>
+					{null}
+				</instrumentid>
+				<addpic>
+					{null}
+				</addpic>
+			</mx:arguments>
+		</mx:method>
+		<mx:method
+			name = "getInstrument"
+			result = "getInstrumentHandler(event)"
+			fault = "onError(event)">
+			<mx:arguments>
+				<instrumentid>
+					{null}
+				</instrumentid>
+			</mx:arguments>
+		</mx:method>
+	</mx:RemoteObject>
+	<mx:RemoteObject
+		id = "reportAMF"
+		destination = "zend"
+		showBusyCursor = "true"
+		source = "reportFunctions">
+		<mx:method 
+			name="getReport" 
+			result="onGetReportResult(event)"  
+			fault="onError(event)">
+			<mx:arguments>
+				<instrumentid>
+					{null}
+				</instrumentid>
+			</mx:arguments>
+		</mx:method>
+	</mx:RemoteObject>
+	</fx:Declarations>
+</s:Group>

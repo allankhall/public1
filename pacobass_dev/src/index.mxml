@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application
+				
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:akh="com.pacobass.component.account.*"
+				xmlns:akh_main = "com.pacobass.component.main.*"
+				layout="vertical"
+				creationComplete = "init()"
+				backgroundColor = "#ced1"
+				height = "100%"
+				width = "100%" backgroundGradientAlphas="[1.0, 1.0]" backgroundGradientColors="[#252EDD, #DE2272]">
+	<fx:Script>
+		<![CDATA[
+			import com.pacobass.amfobject.userData;
+			import com.pacobass.event.ForgotPasswordHelperEvent;
+			import com.pacobass.event.HomeCanvasChangedEvent;
+			import com.pacobass.event.leftmenu.instbbCLKEvent;
+			import com.pacobass.event.LoginEvent;
+			import com.pacobass.event.LoginHelperEvent;
+			import com.pacobass.event.RegisterHelperEvent;
+			import com.pacobass.event.UpdateUserEvent;
+			import com.pacobass.util.Constant;
+			
+			import flash.filters.BlurFilter;
+			import mx.effects.WipeDown;
+			import mx.collections.ArrayCollection;            
+			import mx.controls.Alert;
+						
+			// user details
+			private var user:userData;
+						
+			/**
+			 * open default page and
+			 * propogate empty user
+			 * @private
+			 */
+			private function init():void{
+				mainStack.selectedIndex = 0;
+				user = new userData();
+				homeBox.user = user;
+				//add blur filters so fade will work without 
+				//need to embed fonts
+				loginBox.filters = [new BlurFilter(0,0,0)];
+				copyrightLabel.text = "\u00A92010-"+ new Date().fullYear + " pacobass.com";
+				//Alert.show("We are working on the site: expect the unexpected");
+			}
+						
+			/**
+			 * set user from login component
+			 * @private
+			 * @param loginEvent - userData
+			 */
+			private function loginHandler(e:LoginEvent):void{
+				user = e.user as userData;
+				homeBox.login(user);
+			}
+						
+			private function updateUserHandler(e:UpdateUserEvent):void{
+				user = e.user as userData;
+				loginBox.user = user;
+			}
+						
+
+			/**
+			 * handle otger events from login component
+			 * such as forgot password, register, etc
+			 * @private
+			 * @param LoginHelperEvent - string
+			 */
+			private function loginHelperHandler(e:LoginHelperEvent):void{
+				var link:String = e.link as String;
+				if(link == Constant.REGISTER_LINK){
+					mainStack.selectedChild = registerCanvas
+					fadeOut.play([loginBox]);
+				}else if (link == Constant.FORGOT_PASSWORD_LINK){
+					mainStack.selectedChild = forgotPasswordCanvas;
+					fadeOut.play([loginBox]);
+				}else if (link == Constant.LOGOUT_LINK){
+					//void user in main box
+					homeBox.logout();
+					topicsMenu.reset();
+				}
+			}
+						
+			/**
+			 * handle register event from register component
+			 * @private
+			 * @param RegisterHelperEvent - string
+			 */
+			private function registerHelperHandler(e:RegisterHelperEvent):void{
+				var button:String = e.button as String;
+				if(button == Constant.CANCEL_LINK){
+					loginBox.resetForm();
+					fadeIn.play([loginBox]);
+					mainStack.selectedChild = mainCanvas;
+				}else if (button == Constant.REGISTRATION_COMPLETE){
+					loginBox.resetForm();
+					fadeIn.play([loginBox]);
+					mainStack.selectedChild = mainCanvas;
+				}
+			}
+					
+			/**
+			 * handle event from forgotpassword component
+			 * @private
+			 * @param ForgotpasswordHelperEvent - string
+			 */
+			private function forgotPasswordHelper(e:ForgotPasswordHelperEvent):void{
+				var button:String = e.button as String;
+				if(button == Constant.CANCEL_LINK){
+					loginBox.resetForm();
+					fadeIn.play([loginBox]);
+					mainStack.selectedChild = mainCanvas;
+				}else{
+					loginBox.resetForm();
+					fadeIn.play([loginBox]);
+					forgotPasswordBox.resetForm();
+					mainStack.selectedChild = mainCanvas;	
+				}
+			}
+						
+			/**
+			 * change side menu to reflect changes in main viewstack
+		 	* @rivate
+			 * @param viestack child id
+			 */
+			private function homeCanvasChangedHandler(e:HomeCanvasChangedEvent):void{
+				topicsMenu.showMenu(e.selectedCanvas as String);
+			}
+			
+			//inform home component to change contributor canvas		
+			private function instmenuHandler(e:instbbCLKEvent):void{
+				homeBox.changeInsCVS(e.buttonClicked as String);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<mx:WipeDown id="wipe_Down" duration = "500" />
+		<mx:WipeUp id = "wipe_Up" duration = "500" />
+		<mx:Fade id="fadeIn" alphaFrom="0.0" alphaTo="1.0" duration ="1000"/>
+		<mx:Fade id="fadeOut" alphaFrom="1.0" alphaTo="0.0" duration = "500" />
+		<mx:Dissolve id="dissolveOut" duration="1000" alphaFrom="1.0" alphaTo="0.0"/>
+		<mx:Dissolve id="dissolveIn" duration="1000" alphaFrom="0.0" alphaTo="1.0"/>
+	</fx:Declarations>
+	<mx:VBox  
+			height = "100%"
+			width = "1280" >
+		<mx:HBox  
+					height = "800"
+				width = "100%">
+			<mx:VBox 
+					id ="leftCol" 
+					width = "300"
+					height = "500" 
+			>
+				<akh:LoginBox 
+						id = "loginBox" 
+						login = "loginHandler(event)" 
+						loginHelper = "loginHelperHandler(event)" 
+						height = "230"/>
+				<akh_main:LeftMenu id = "topicsMenu"
+						height = "250"
+						instbbCLKEvent = "instmenuHandler(event)"/>
+			</mx:VBox >
+			<mx:ViewStack 
+					id="mainStack" 
+					 width = "900"
+					height = "800" >
+				<mx:Canvas id = "mainCanvas">
+						<akh_main:HomeComponent 
+								id = "homeBox" 
+								showEffect = "{wipe_Down}" 
+								hideEffect="{wipe_Up}"
+								updateUserEvent = "updateUserHandler(event)"
+								homeCanvasChanged = "homeCanvasChangedHandler(event)"
+								width = "900" height="95%"/>
+						<mx:Image x="583" y="368" source="com/pacobass/asset/pacobass.png" />
+						<mx:Image x="748" y="217" source="com/pacobass/asset/standuppb.png" includeInLayout="false"/>	
+				</mx:Canvas>
+				<mx:Canvas 
+						id="registerCanvas" 
+						showEffect = "{wipe_Down}" 
+						hideEffect="{wipe_Up}" 
+						verticalScrollPolicy="off">
+					<akh:Register 
+							id ="registerBox" 
+							registerHelper = "registerHelperHandler(event)" 
+							verticalScrollPolicy = "off"/>
+				</mx:Canvas>
+				<mx:Canvas 
+						id = "forgotPasswordCanvas" 
+						showEffect = "{wipe_Down}" 
+						hideEffect="{wipe_Up}">
+					<akh:ForgotPasswordBox 
+							id = "forgotPasswordBox" 
+							forgotPasswordHelper = "forgotPasswordHelper(event)" />
+				</mx:Canvas>
+			</mx:ViewStack>
+		</mx:HBox>
+		<mx:VBox horizontalAlign="center" width="100%">
+			<mx:Label id = "copyrightLabel" />
+  		</mx:VBox>
+	</mx:VBox>
+</mx:Application>

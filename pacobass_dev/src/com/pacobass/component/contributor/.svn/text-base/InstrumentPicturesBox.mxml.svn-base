@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="500" height="250" 
+		 creationComplete = "init()">
+	<fx:Metadata>
+		[Event(name="PictureListChangeEvent", type = "com.pacobass.event.instrument.PictureListChangeEvent")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.pacobass.amfobject.pictureData2;
+			import com.pacobass.component.contributor.InstrumentPicItemRenderer;
+			import com.pacobass.event.instrument.PictureListChangeEvent;
+			import com.pacobass.util.Constant;
+			
+			import flash.net.FileReference;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			
+			[Bindable]
+			private var _instrumentID:int;
+			[Bindable]
+			private var myarry:ArrayCollection;
+			[Bindable]
+			private var _pictureURIs:ArrayCollection;
+			[Bindable]
+			private var _pictureURIs2:ArrayCollection;
+			private var fileRef:FileReference;
+			[Bindable]
+			public function set pictureURIs(pictureURIs:ArrayCollection):void{
+				_pictureURIs = pictureURIs;
+				_pictureURIs2 = pictureURIs;
+				updatePictureURIs();
+			}
+			public function get pictureURIs():ArrayCollection{
+				return _pictureURIs2;
+				//return _pictureURIs;
+			}
+			private function updatePictureURIs():void{
+				picDGRP.invalidateDisplayList();		
+			}
+			
+			[Bindable]
+			public function set instrumentID(instrumentID:int):void{
+				_instrumentID = instrumentID;
+			}
+			public function get instrumentID():int{
+				return _instrumentID;
+			}
+			
+			private function init():void{
+				fileRef = new FileReference();
+				myarry = new ArrayCollection();
+				
+				var str:String = new String();
+				str = "abc";
+		
+				myarry.addItem("pic/bass.jpg");
+				myarry.addItem("pic/bass.jpg");
+				myarry.addItem("pic/bass.jpg");
+				myarry.addItem("pic/bass.jpg");
+				myarry.addItem("pic/bass.jpg");
+				myarry.addItem("pic/bass.jpg");
+				myarry.addItem("pic/addpic.jpg");
+
+			}
+			
+			private function addPic(e:MouseEvent):void{
+				Alert.show(e.toString());
+				//fileRef.browse(Constant.allTypes);
+			}
+			
+			
+		]]>
+	</fx:Script>				
+	<fx:Declarations>
+	</fx:Declarations>
+	<s:Scroller left="25" right="25" top="1" bottom="50">
+		<s:DataGroup 
+				id = "picDGRP" dataProvider="{_pictureURIs2}" 
+				itemRenderer="com.pacobass.component.contributor.InstrumentPicItemRenderer">
+			<s:layout>
+				<s:HorizontalLayout>
+				</s:HorizontalLayout>
+			</s:layout>
+		</s:DataGroup>
+	</s:Scroller>
+</s:Group>

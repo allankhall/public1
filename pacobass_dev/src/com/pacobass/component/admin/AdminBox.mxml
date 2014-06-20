@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox 
+	xmlns:mx="library://ns.adobe.com/flex/mx"
+	xmlns:fx="http://ns.adobe.com/mxml/2009" 
+	width="100%" height="100%" creationComplete="init()">
+	<fx:Script>
+		<![CDATA[
+			import com.pacobass.amfobject.userData;
+			import com.pacobass.component.admin.AdminPopUp;
+			import com.pacobass.util.Constant;
+			import com.pacobass.util.CookieUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			[Bindable]
+			private var _users:Array;
+			private var msgPopUp:AdminPopUp;
+		
+			[Bindable]
+			private function get users():Array{
+				return _users;
+			}
+			private function set users(users:Array):void{
+				_users = users;
+			}
+		
+			private function init():void{
+				msgPopUp = new AdminPopUp();
+				users = new Array();
+				getAllUsers();
+			}
+		
+			private function getAllUsers():void{
+				zendAMF.getAllUsers();
+			}
+		
+			private function getAllUsersHandler(e:ResultEvent):void{
+				users = e.result as Array;
+			}
+			
+			/**
+			 * handle error returned from AMF.
+			 * @private
+			 * @param error :FaultEvent
+			 */
+			private function onError(err:FaultEvent):void {
+				Alert.show(Constant.GENERAL_ERROR);
+			}
+			
+			public function statusChanged(data:Object, selectedItem:Object):void{
+				//update status service call
+				var header:String = "Inform user of change to status.";
+				var subject:String = "Account changes at pacobass.com";
+				messagePopUp(data as userData,header, subject, selectedItem.toString());
+			}
+			
+			public function roleChanged(data:Object, selectedItem:Object):void{
+				//update status service call
+				var header:String = "Inform user of change to role.";
+				var subject:String = "Account changes at pacobass.com";
+				roleMessagePopUp(data as userData,header, subject, selectedItem.toString());
+			}
+			
+			public function emailUser(data:Object):void{
+				var header:String = "Send Email To user.";
+				var subject:String = "Message from pacobass.com";
+				emailMessagePopUp(data as userData,header, subject);
+			}
+			
+			public function deleteUser(data:Object):void{
+				var header:String = "Send Email To user.";
+				var subject:String = "Account Deleted from pacobass.com";
+				deleteMessagePopUp(data as userData,header, subject);
+			}
+			
+			private function updateUserHandler(e:ResultEvent):void{
+				if(e.result as Boolean){
+					getAllUsers();
+					Alert.show("the action was successful");
+				}else{
+					Alert.show("the update was not successful");
+				}
+			}
+			
+			private function messagePopUp(user:userData, header:String, subject:String, newStatus:String):void{
+				msgPopUp = AdminPopUp(PopUpManager.createPopUp(this, AdminPopUp, true));
+				msgPopUp.addEventListener( CloseEvent.CLOSE, adminPopUpCloseHandler, false, 1 );
+				PopUpManager.centerPopUp(msgPopUp);
+				msgPopUp.user = user;
+				msgPopUp.title = header;
+				msgPopUp.subject = subject;
+				msgPopUp.newStatus = newStatus;
+			}
+			
+			private function roleMessagePopUp(user:userData, header:String, subject:String, newRole:String):void{
+				msgPopUp = AdminPopUp(PopUpManager.createPopUp(this, AdminPopUp, true));
+				msgPopUp.addEventListener( CloseEvent.CLOSE, roleAdminPopUpCloseHandler, false, 1 );
+				PopUpManager.centerPopUp(msgPopUp);
+				msgPopUp.user = user;
+				msgPopUp.title = header;
+				msgPopUp.subject = subject;
+				msgPopUp.newStatus = newRole;
+			}
+			
+			private function emailMessagePopUp(user:userData, header:String, subject:String):void{
+				msgPopUp = AdminPopUp(PopUpManager.createPopUp(this, AdminPopUp, true));
+				msgPopUp.addEventListener( CloseEvent.CLOSE, emailPopUpCloseHandler, false, 1 );
+				PopUpManager.centerPopUp(msgPopUp);
+				msgPopUp.user = user;
+				msgPopUp.title = header;
+				msgPopUp.subject = subject;
+			}
+			
+			private function deleteMessagePopUp(user:userData, header:String, subject:String):void{
+				msgPopUp = AdminPopUp(PopUpManager.createPopUp(this, AdminPopUp, true));
+				msgPopUp.addEventListener( CloseEvent.CLOSE, deletePopUpCloseHandler, false, 1 );
+				PopUpManager.centerPopUp(msgPopUp);
+				msgPopUp.user = user;
+				msgPopUp.title = header;
+				msgPopUp.subject = subject;
+			}
+			
+
+			private function roleAdminPopUpCloseHandler( e:CloseEvent ):void{
+   				var body:String = e.currentTarget.bodyTextArea.text;
+   				var userD:userData = e.currentTarget.user;
+   				if(e.detail == 1){
+   					zendAMF.updateUserRole(userD, e.currentTarget.bodyTextArea.text, e.currentTarget.subject, e.currentTarget.newStatus); 
+   				}else{
+   					zendAMF.getAllUsers();
+   				}
+   				
+			}
+
+			private function adminPopUpCloseHandler( e:CloseEvent ):void{
+   				var body:String = e.currentTarget.bodyTextArea.text;
+   				var userD:userData = e.currentTarget.user;
+   				if(e.detail == 1){
+   					zendAMF.updateUserStatus(userD, e.currentTarget.bodyTextArea.text, e.currentTarget.subject, e.currentTarget.newStatus); 
+   				}else{
+   					zendAMF.getAllUsers();
+   				}
+			}
+			
+			private function emailPopUpCloseHandler( e:CloseEvent ):void{
+   				var body:String = e.currentTarget.bodyTextArea.text;
+   				var userD:userData = e.currentTarget.user;
+   				if(e.detail == 1){
+   					zendAMF.emailUser(userD, e.currentTarget.bodyTextArea.text, e.currentTarget.subject); 
+   				}else{
+   					zendAMF.getAllUsers();
+   				}	
+			}
+			
+			private function deletePopUpCloseHandler( e:CloseEvent ):void{
+   				var body:String = e.currentTarget.bodyTextArea.text;
+   				var userD:userData = e.currentTarget.user;
+   				if(e.detail == 1){
+   					zendAMF.deleteUser(userD, e.currentTarget.bodyTextArea.text, e.currentTarget.subject); 
+   				}else{
+   					zendAMF.getAllUsers();
+   				}	
+			}
+			
+			]]>
+	</fx:Script>
+	<fx:Declarations>
+		<mx:RemoteObject 
+			id="zendAMF" 
+			destination="zend" 
+			showBusyCursor="true" 
+			source="test_class">
+			<mx:method 
+				name="getAllUsers" 
+				result="getAllUsersHandler(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+				</mx:arguments>
+			</mx:method>
+			<mx:method
+				name = "updateUserStatus"
+				result = "updateUserHandler(event)"
+				fault = "onError(event)">
+				<mx:arguments>
+					<user>
+						{null}
+					</user>
+					<status>
+						{null}
+					</status>
+				</mx:arguments>
+			</mx:method>
+			<mx:method
+				name = "updateUserRole"
+				result = "updateUserHandler(event)"
+				fault = "onError(event)">
+				<mx:arguments>
+					<user>
+						{null}
+					</user>
+					<status>
+						{null}
+					</status>
+				</mx:arguments>
+			</mx:method>
+			<mx:method
+				name = "emailUser"
+				result = "updateUserHandler(event)"
+				fault = "onError(event)">
+				<mx:arguments>
+					<user>
+						{null}
+					</user>
+					<body>
+						{null}
+					</body>
+					<subject>
+						{null}
+					</subject>
+				</mx:arguments>
+			</mx:method>
+			<mx:method
+				name = "deleteUser"
+				result = "updateUserHandler(event)"
+				fault = "onError(event)">
+				<mx:arguments>
+					<user>
+						{null}
+					</user>
+					<body>
+						{null}
+					</body>
+					<subject>
+						{null}
+					</subject>
+				</mx:arguments>
+			</mx:method>
+		</mx:RemoteObject>
+	</fx:Declarations>
+	<mx:Label text = "ADMIN"/>
+	<mx:DataGrid id = "userGrid" dataProvider = "{users}" width="750">
+		<mx:columns>
+			<mx:DataGridColumn
+					dataField = "username"/>
+			<mx:DataGridColumn
+					dataField = "firstName"
+					headerText = "first"/>
+			<mx:DataGridColumn
+					dataField = "lastName"
+					headerText = "last"/>
+			<mx:DataGridColumn
+					dataField = "email"
+					id="emailColumn">
+				<mx:itemRenderer>
+					<fx:Component>
+						<mx:LinkButton
+								label = "{data.email}"
+								click = "outerDocument.emailUser(data)">
+						</mx:LinkButton>
+					</fx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>	
+			<mx:DataGridColumn
+					id = "statusColumn"
+					dataField = "status"
+					width = "75" >
+				<mx:itemRenderer>
+					<fx:Component>
+						<mx:ComboBox
+								dataProvider = "{Constant.STATUS_ARRAY}"
+								change = "outerDocument.statusChanged(data, selectedItem)">
+							<fx:Script>
+								<![CDATA[
+									import com.pacobass.util.Constant;
+									]]>
+							</fx:Script>
+						</mx:ComboBox>
+					</fx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn
+					dataField="role"
+					width = "75"
+					id = "roleColumn">
+				<mx:itemRenderer>
+					<fx:Component>
+						<mx:ComboBox
+								dataProvider = "{Constant.ROLES_ARRAY}"
+								change = "outerDocument.roleChanged(data, selectedItem)">
+							<fx:Script>
+								<![CDATA[
+									import com.pacobass.util.Constant;
+								]]>
+							</fx:Script>
+						</mx:ComboBox>
+					</fx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn
+					headerText = "delete"
+					width = "75"
+					id = "deleteColumn"
+					sortable="false">
+				<mx:itemRenderer>
+					<fx:Component>
+						<mx:Button
+								click = "outerDocument.deleteUser(data)"
+								label="delete"/>
+					</fx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+
+</mx:VBox>

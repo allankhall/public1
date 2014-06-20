@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox 
+	xmlns:mx="library://ns.adobe.com/flex/mx"
+	xmlns:fx="http://ns.adobe.com/mxml/2009" 
+	height = "300" width = "400"
+		creationComplete = "init()">
+	<fx:Metadata>
+		[Event(name="updateUserEvent", type = "com.pacobass.event.UpdateUserEvent")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.pacobass.amfobject.userData;
+			import com.pacobass.event.UpdateUserEvent;
+			import com.pacobass.util.Constant;
+			
+			import mx.controls.Alert;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.EmailValidator;
+			import mx.validators.StringValidator;
+			
+			//validators
+			private var firstNameValidator:StringValidator;
+			private var lastNameValidator:StringValidator;
+			private var passwordValidator:StringValidator;
+			private var mailValidator:EmailValidator;
+			
+			//field valid bools
+			private var firstNameValid:Boolean;
+			private var lastNameValid:Boolean;
+			private var emailValid:Boolean;
+			private var passwordValid:Boolean;
+			private var passwordMatchBool:Boolean;
+			
+			private var _user:userData;
+			
+			[Bindable]
+			public function set user(user:userData):void{
+				this._user = user;
+			}
+			public function get user():userData{
+				return _user;
+			}
+			
+			/**
+			 * valdate all fields and set submit buton
+			 * @private
+			 */
+			private function enableSubmit():void{
+				updateButton.enabled = false;
+				firstNameValid = (firstNameValidator.validate().type == ValidationResultEvent.VALID);
+				lastNameValid = (lastNameValidator.validate().type == ValidationResultEvent.VALID);
+				passwordValid = (passwordValidator.validate().type == ValidationResultEvent.VALID);
+				emailValid = (mailValidator.validate().type == ValidationResultEvent.VALID);
+				passwordMatchBool = passwordMatch();
+				if(firstNameValid &&
+					lastNameValid &&
+					passwordValid &&
+					passwordMatchBool &&
+					emailValid
+					&& _user.username != "pacobass")
+				{
+					updateButton.enabled = true;
+				}		
+			}
+		
+			/**
+			 * submit form to service call
+			 * @private
+			 */
+			private function callZend():void{
+					_user.firstName = firstNameInput.text;
+					_user.lastName = lastNameInput.text;
+					_user.password = passwordInput.text;
+					_user.email = emailInput.text;
+				try{
+					zendAMF.updateUser( _user);
+				}catch(e:TypeError){
+					//typeError always thrown here
+					//just ignore as it does not appear to affect
+					//anything
+				}
+			}
+			
+			/**
+			 * check to see if passwords match and set error string
+			 * @private
+			 * @return boolean - true if match false otherwise
+			 */
+			private function passwordMatch():Boolean{
+				var match:Boolean = new Boolean();
+				match = true;
+				passwordAgainInput.errorString = "";
+				if (passwordInput.text != passwordAgainInput.text){
+					passwordAgainInput.errorString = Constant.PASSWORDS_DONT_MATCH;
+					match = false;
+				}
+				return match;
+			}
+			
+			/**
+			 * setup validators and valid fields bools
+			 * @private
+			 */
+			private function init():void{
+				
+				firstNameValidator = new StringValidator();
+				firstNameValidator.source = firstNameInput;
+				firstNameValidator.required = true;
+				firstNameValidator.property = "text";
+				firstNameValidator.minLength = Constant.FIRST_NAME_MIN_LENGTH;
+				firstNameValidator.maxLength = Constant.FIRST_NAME_MAX_LENGTH;
+				firstNameValidator.tooShortError = Constant.FIRST_NAME_SHORT_ERROR;
+				firstNameValidator.tooLongError = Constant.FIRST_NAME_LONG_ERROR;
+				
+				lastNameValidator = new StringValidator();
+				lastNameValidator.source = lastNameInput;
+				lastNameValidator.required = false;
+				lastNameValidator.property = "text";
+				lastNameValidator.minLength = Constant.LAST_NAME_MIN_LENGTH;
+				lastNameValidator.maxLength = Constant.LAST_NAME_MAX_LENGTH;
+				lastNameValidator.tooShortError = Constant.LAST_NAME_SHORT_ERROR;
+				lastNameValidator.tooLongError = Constant.LAST_NAME_LONG_ERROR;
+				
+				passwordValidator = new StringValidator();
+				passwordValidator.source = passwordInput;
+				passwordValidator.required = true;
+				passwordValidator.property = "text";
+				passwordValidator.minLength = Constant.PASSWORD_MIN_LENGTH;
+				passwordValidator.maxLength = Constant.PASSWORD_MAX_LENGTH;
+				passwordValidator.tooShortError = Constant.PASSWORD_SHORT_ERROR;
+				passwordValidator.tooLongError = Constant.PASSWORD_LONG_ERROR;
+				
+				mailValidator = new EmailValidator();
+				mailValidator.source = emailInput;
+				mailValidator.property = "text";
+				
+				firstNameValid = new Boolean();
+				lastNameValid = new Boolean();
+				passwordValid = new Boolean();
+				passwordMatchBool = new Boolean();
+				emailValid = new Boolean();
+				
+				_user = new userData();
+
+			}
+			
+			/**
+			 * reset form and send cancel event to parent
+			 * @private
+			 */
+			private function cancel(button:String):void{
+				resetForm();
+			}
+			
+			/**
+			 * null fields and error strings
+			 * @private
+			 */
+			public function resetForm():void{
+				firstNameInput.text = user.firstName;
+				lastNameInput.text = user.lastName;
+				passwordInput.text = user.password;
+				passwordAgainInput.text = user.password;
+				emailInput.text = user.email;
+				
+				firstNameInput.errorString = "";
+				lastNameInput.errorString = "";
+				passwordInput.errorString = "";
+				passwordAgainInput.errorString = "";
+				emailInput.errorString = "";
+			}
+			
+			/**
+			 * handle result from service call to register new user
+			 * send result to parent
+			 * @private
+			 * @param result event as bool - true if registration succesful false otherwise
+			 */
+			private function updateUserResult(event:ResultEvent):void{
+				resetForm();
+				if (event.result as Boolean){
+					Alert.show(Constant.UPDATE_SUCCESS);
+				}else{
+					Alert.show(Constant.UPDATE_ERROR);
+				}
+				dispatchEvent(new UpdateUserEvent(_user, true));	
+			}
+			
+			/**
+			 * alert on error from service call
+			 * @private
+			 */
+			private function onError(err:FaultEvent):void {
+				//Alert.show(err.message.toString(),"ERROR!");
+				Alert.show(Constant.GENERAL_ERROR);
+			}
+			
+			/**
+			 * handle if email already registered
+			 * exit on error if so or register user if not
+			 * pre-condition - username must not already be registered
+			 * @private
+			 * @param ResultEvent bool- true if already registered false otherwise
+			 */
+			private function updateEmailRegisteredHandler(event:ResultEvent):void{
+				var registered:Boolean = event.result as Boolean;
+				if(registered && mailValidator.validate().type == ValidationResultEvent.VALID){
+					updateButton.enabled = false;
+					emailInput.text = "";
+					Alert.show("the email is already registered");
+				}
+				else if(mailValidator.validate().type == ValidationResultEvent.VALID){
+					//email is valid so register new user
+					updateButton.enabled = false;
+					callZend();
+				}
+			}
+	
+			
+			/**
+			 * check to see if email is already registered
+			 * @private
+			 */
+			private function updateEmailRegistered():void{
+				zendAMF.updateEmailRegistered(emailInput.text);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>	
+		<mx:RemoteObject 
+			id="zendAMF" 
+			destination="zend" 
+			showBusyCursor="true" 
+			source="test_class">
+			<mx:method 
+				name="updateUser" 
+				result="updateUserResult(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<user>
+						{null}
+					</user>
+				</mx:arguments>
+			</mx:method>
+			<mx:method 
+				name="updateEmailRegistered" 
+				result="updateEmailRegisteredHandler(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<email>
+						{null}
+					</email>
+				</mx:arguments>
+			</mx:method>
+		</mx:RemoteObject>
+	</fx:Declarations>
+	
+	
+	<mx:Label text = "UPDATE PROFILE" />
+	<mx:Form id="registerForm">
+		<mx:FormItem label = "first name : ">
+			<mx:TextInput 
+					id="firstNameInput" 
+					change = "enableSubmit()" 
+					restrict = "{Constant.ALPHA_REGEX}" />
+		</mx:FormItem>
+		<mx:FormItem label = "last name : ">
+			<mx:TextInput 
+					id="lastNameInput" 
+					change = "enableSubmit()" 
+					restrict = "{Constant.ALPHA_REGEX}" />
+		</mx:FormItem>
+		<mx:FormItem label = "password : ">
+			<mx:TextInput 
+					id="passwordInput" 
+					displayAsPassword="true" 
+					change="enableSubmit()"/>
+		</mx:FormItem>
+		<mx:FormItem label = "repeat password : ">
+			<mx:TextInput 
+					id="passwordAgainInput" 
+					displayAsPassword="true" 
+					change="enableSubmit()"/>
+		</mx:FormItem>
+		<mx:FormItem label = "email : ">
+			<mx:TextInput 
+					id="emailInput" 
+					change = "enableSubmit()"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:HBox>
+		<mx:Button 
+				id = "updateButton" 
+				label="update" 
+				click = "updateEmailRegistered()"
+				enabled = "false" />
+		<mx:Button
+				id = "resetButton"
+				label = "reset"
+				click = 'cancel(Constant.CANCEL_LINK)' />
+	</mx:HBox>
+
+</mx:VBox>

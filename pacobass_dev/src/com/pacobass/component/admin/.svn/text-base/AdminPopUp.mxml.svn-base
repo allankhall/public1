@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow 
+	xmlns:mx="library://ns.adobe.com/flex/mx"
+	xmlns:fx="http://ns.adobe.com/mxml/2009" 
+	close= "windowClosed(event)"
+		showCloseButton = "true"
+		creationComplete = "init()">
+	<fx:Script>
+		<![CDATA[
+			import com.pacobass.amfobject.userData;
+			
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			[Bindable]
+			private var _user:userData;
+			
+			[Bindable]
+			private var _subject:String;
+			
+			[Bindable]
+			private var _body:String;
+			
+			[Bindable]
+			private var _header:String;
+			
+			[Bindable]
+			private var _newStatus:String;
+			
+			[Bindable]
+			public function get user():userData{
+				return _user;
+			}
+			public function set user(user:userData):void{
+				_user = user;
+			}
+			
+			[Bindable]
+			public function get subject():String{
+				return _subject;
+			}
+			public function set subject(subject:String):void{
+				_subject = subject;
+			}
+			
+			[Bindable]
+			public function get body():String{
+				return _body;
+			}
+			public function set body(body:String):void{
+				_body = body;
+			}
+			
+			[Bindable]
+			public function get header():String{
+				return _header;
+			}
+			public function set header(header:String):void
+			{
+				_header = header;
+			}
+			
+			[Bindable]
+			public function get newStatus():String{
+				return _newStatus;
+			}
+			public function set newStatus(newStatus:String):void
+			{
+				_newStatus = newStatus;
+			}
+			private function init():void
+			{
+				_user = new userData;
+			}
+			
+			private function windowClosed(evt:CloseEvent):void {
+                PopUpManager.removePopUp(this);
+            }
+			
+			private function submit(evt:MouseEvent):void{
+				var e:CloseEvent = new CloseEvent(CloseEvent.CLOSE);
+				e.detail = 1;
+				dispatchEvent(e);
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function cancel(evt:MouseEvent):void{
+				var e:CloseEvent = new CloseEvent(CloseEvent.CLOSE);
+				e.detail = 0;
+				dispatchEvent(e);
+				PopUpManager.removePopUp(this);
+			}
+			
+		]]>
+	</fx:Script>
+	<mx:VBox>
+		<mx:Label text = "To : {this.user.email}"/>
+		<mx:Label text = "Subject : {this.subject}"/> 
+		<mx:Form id = "adminPopUpForm">
+			<mx:FormItem label="Body : ">
+				<mx:TextArea id = "bodyTextArea" height="150" width="200"/>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:HBox>
+			<mx:Button id = "sendButton" label="send" click = "submit(event)" />
+			<mx:Button id = "cancelButton" label="cancel" click ="cancel(event)"/>
+		</mx:HBox>
+	</mx:VBox>
+</mx:TitleWindow>

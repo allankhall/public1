@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<services-config>
+    <services>
+        <service id="amfphp-flashremoting-service" class="flex.messaging.services.RemotingService" messageTypes="flex.messaging.messages.RemotingMessage">
+            <destination id="zend">
+                <channels>
+                    <channel ref="my-zend"/> 
+                     <channel ref="my-zend-www"/>
+                   <!-- <channel ref="my-zend-ssl"/>-->
+                   <channel ref="my-zend-dev"/> 
+                </channels>
+                <properties>
+                    <source>*</source>
+                </properties>
+            </destination>
+        </service>
+    </services>
+    <channels>
+       <channel-definition id="my-zend" class="mx.messaging.channels.AMFChannel">
+         <endpoint uri="http://pacobass.com/zend_gateway.php" class="flex.messaging.endpoints.AMFEndpoint"/>
+        </channel-definition> 
+        <channel-definition id="my-zend-ssl" class="mx.messaging.channels.SecureAMFChannel">
+         <endpoint url="https://odust.com/pacobassphp/zend_gateway.php" class="flex.messaging.endpoints.SecureAMFEndpoint"/>
+         <properties>
+            <add-no-cache-headers>false</add-no-cache-headers>
+            <connect-timeout-seconds>10</connect-timeout-seconds>
+        </properties>
+        </channel-definition>        
+         <channel-definition id="my-zend-www" class="mx.messaging.channels.AMFChannel">
+         	<endpoint uri="http://www.pacobass.com/zend_gateway.php" class="flex.messaging.endpoints.AMFEndpoint"/>
+        </channel-definition> 
+      <channel-definition id="my-zend-dev" class="mx.messaging.channels.AMFChannel">
+          <endpoint uri="http://localhost/~paco/pacobass/zend_gateway.php" class="flex.messaging.endpoints.AMFEndpoint"/>
+           <properties>
+            <add-no-cache-headers>false</add-no-cache-headers>
+            <connect-timeout-seconds>10</connect-timeout-seconds>
+        </properties>
+        </channel-definition> 
+    </channels>
+</services-config>

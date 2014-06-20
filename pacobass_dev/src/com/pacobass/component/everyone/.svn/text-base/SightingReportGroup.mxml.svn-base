@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="400" height="300">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		import mx.managers.PopUpManager;
+		
+		<![CDATA[
+			private function init():void{
+				fileRef = new FileReference();
+				fileRef.addEventListener(Event.SELECT, fileSelected);
+				fileRef.addEventListener(ProgressEvent.PROGRESS, progressBarEVT);
+				fileRef.addEventListener(Event.COMPLETE, uploadComplete);
+			}
+			
+			private function GetUserIP():String { 
+				var js="function get_userIP(){return java.net.InetAddress.getLocalHost().getHostAddress();}";
+				var userIPInfo:String=ExternalInterface.call(js).toString(); 
+				return userIPInfo;
+			}
+		]]>
+	</fx:Script>
+	
+	<mx:Label text="EDIT REPORT"/>
+	<mx:Form id="editReportForm">
+
+		<mx:FormItem label = "date stolen/lost : ">
+			<mx:DateField id = "dateStolen">
+			</mx:DateField> 
+		</mx:FormItem>
+		<mx:VBox borderStyle = "solid">
+			<mx:Label text = "Last Known Location"/>
+			<mx:Form>
+				<mx:FormItem label = "street address 1 : ">
+					<mx:TextInput 
+						id="addressLine1"/>
+				</mx:FormItem>
+				<mx:FormItem label = "street address 2 : ">
+					<mx:TextInput 
+						id="addressLine2"/>
+				</mx:FormItem>
+				<mx:FormItem label = "city : ">
+					<mx:TextInput 
+						id="cityInput"/>
+				</mx:FormItem>
+				<mx:FormItem label = "state : ">
+					<mx:TextInput 
+						id="stateInput"/>
+				</mx:FormItem>
+				<mx:FormItem label = "country : ">
+					<mx:TextInput 
+						id="countryInput"/>
+				</mx:FormItem>
+				<mx:FormItem label = "zip : ">
+					<mx:TextInput 
+						id="zipInput"
+						change = "enableSubmit()"/>
+				</mx:FormItem>
+			</mx:Form>
+		</mx:VBox>
+		<mx:FormItem label = "additional notes : ">
+			<mx:TextArea
+				height = "50"
+				id="longDesrInput"/>
+		</mx:FormItem>
+		<mx:HBox>
+			<mx:Button 
+				id = "updateButton" 
+				label="update"
+				enabled = "true"
+				click = "updateReportBTN()"/>
+			<mx:Button
+				id = "cancelButton"
+				label = "cancel" 
+				click = 'cancel(Constant.CANCEL_LINK)'/>
+		</mx:HBox>
+	</mx:Form>
+</s:Group>

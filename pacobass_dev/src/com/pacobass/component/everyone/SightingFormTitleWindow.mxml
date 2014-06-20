@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" width="450" height="425"
+			   close = "PopUpManager.removePopUp(this);"
+			   creationComplete = "init()">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			
+			import com.google.maps.services.ClientGeocoder;
+			import com.google.maps.services.ClientGeocoderOptions;
+			import com.google.maps.services.GeocodingEvent;
+			import com.pacobass.amfobject.sightingData;
+			import com.pacobass.util.Constant;
+			import com.pacobass.amfobject.pictureData;
+			
+			import flash.net.FileReference;
+			
+			import mx.controls.Alert;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+
+			
+			private var fileRef:FileReference;
+			private var _clientip:String;
+			private var _lat:Number;
+			private var _lng:Number;
+			private var _instrumentid:int;
+			private var _sightingD:sightingData;
+			private var _reportid:int;
+
+			[Bindable]
+			public function get reportid():int
+			{
+				return _reportid;
+			}
+
+			public function set reportid(value:int):void
+			{
+				_reportid = value;
+			}
+
+			[Bindable]
+			public function get sightingD():sightingData
+			{
+				return _sightingD;
+			}
+
+			public function set sightingD(value:sightingData):void
+			{
+				_sightingD = value;
+			}
+
+			[Bindable]
+			public function get instrumentid():int
+			{
+				return _instrumentid;
+			}
+
+			public function set instrumentid(value:int):void
+			{
+				_instrumentid = value;
+			}
+
+			[Bindable]
+			public function get lng():Number
+			{
+				return _lng;
+			}
+			public function set lng(value:Number):void
+			{
+				_lng = value;
+			}
+			[Bindable]
+			public function get lat():Number
+			{
+				return _lat;
+			}
+
+			public function set lat(value:Number):void
+			{
+				_lat = value;
+			}
+			[Bindable]
+			public function get clientip():String
+			{
+				return _clientip;
+			}
+
+			public function set clientip(value:String):void
+			{
+				_clientip = value;
+			}
+
+			private function init():void{
+				fileRef = new FileReference();
+				fileRef.addEventListener(Event.SELECT, fileSelected);
+				fileRef.addEventListener(Event.COMPLETE, uploadComplete);
+				sightingD = new sightingData();
+			}
+			
+			
+			private function GetUserIP():String { 
+				var js="function get_userIP(){return java.net.InetAddress.getLocalHost().getHostAddress();}";
+				var userIPInfo:String=ExternalInterface.call(js).toString(); 
+				return userIPInfo;
+			}
+			
+			private function fileSelected(event:Event):void{
+				try{
+					picturefile.text = fileRef.name;
+					fileRef.load();
+				}catch (error:Error){
+					Alert.show("Unable to upload file.");
+				}
+			}
+			private function addPic():void{
+
+					fileRef.browse(Constant.allTypes);
+			}
+			
+			private function exitForm():void{
+				//Alert.show(GetUserIP());
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function submitForm():void{
+				//get ip
+				clientip = GetUserIP();
+				sightingD.clientip = clientip;
+				//geocode
+				doGeocode();
+				//upload file
+				
+			}
+			
+			private function doGeocode():void {
+				// Geocoding example
+				
+				var geocoder:ClientGeocoder = new ClientGeocoder();
+				geocoder.addEventListener(GeocodingEvent.GEOCODING_SUCCESS, geocodeSuccessHandler);
+				geocoder.addEventListener(GeocodingEvent.GEOCODING_FAILURE, geocodeFailureHandler);
+				geocoder.geocode(addressLine1.text + " " + addressLine2.text + " " + cityInput.text + " " + stateInput.text + " " + zipInput.text);
+			}
+			private function geocodeSuccessHandler(event:GeocodingEvent):void {
+				var placemarks:Array = event.response.placemarks;
+				if (placemarks.length > 0) {
+					lat = placemarks[0].point.lat();
+					lng = placemarks[0].point.lng();
+				}
+				//now we have ip and lat/lng create report in DB get report id and upload file is any.
+
+				sendReport();
+			}
+			
+			private function geocodeFailureHandler(event:GeocodingEvent):void {
+				//trace("Geocoding failed");
+				//geocode is not required so if it fails just ignore
+				//go ahead with work flow by creting report getting reportid and upload file if any.
+
+				Alert.show("I did not recognize the address you supplied");
+			}
+			private function sendReport():void{
+				sightingD.addressLine1 = addressLine1.text;
+				sightingD.addressLine2 = addressLine2.text;
+				sightingD.city = cityInput.text;
+				sightingD.state = stateInput.text;
+				sightingD.country = countryInput.text;
+				sightingD.zip = zipInput.text;
+				sightingD.description = longDesrInput.text;
+				sightingD.lat = lat;
+				sightingD.lng = lng;
+				sightingD.instrumentid = instrumentid;
+				sightingD.reportid = reportid;
+				zendAMF.createReport(sightingD);
+			}
+			
+			private function onError(err:FaultEvent):void {
+				//Alert.show(err.message.toString(),"ERROR!");
+				Alert.show(Constant.GENERAL_ERROR);
+			}
+			
+			private function onCreateReportResult(event:ResultEvent):void{
+				sightingD.sightingid = event.result as int;
+				//Alert.show(sightingid.toString());
+				//PopUpManager.removePopUp(this);
+				//Alert.show("Thank You for submitting the report. File Upload is not fully supported yet. This posting will be viewable by the instrument owner. Please do not repost");
+				currentState = 'pictureState';
+			}
+			
+			
+			private function progressBarEVT(evt:ProgressEvent):void {
+				//progressBar.visible = true;
+			}
+			
+			private function uploadComplete(event:Event):void{
+				//get filename, instrument id, and picdata:byteArray
+				var data:ByteArray = new ByteArray();
+				fileRef.data.readBytes(data,0,fileRef.data.length);
+				var picture:pictureData = new pictureData();
+				picture.fileName = fileRef.name;
+				picture.fileData = data;
+				
+			//	var instd:int = this.data.instrumentID;
+				if (fileRef.size < 2097152){
+				zendAMFUploader.uploadSightingPic(sightingD.sightingid, picture);
+					
+				}else{
+					Alert.show("File exceeds the 2MB upload limit");
+				}
+			}
+			private function uploadHandler(e:ResultEvent):void{
+				//dispatchEvent(new PictureListChangeEvent(data.instrumentID));
+				//PopUpManager.removePopUp(this);
+				//Alert.show("thank you for submitting the report");
+				zendAMF.makeActive(sightingD.sightingid);
+			}
+			private function dontUpload():void{
+				zendAMF.makeActive(sightingD.sightingid);
+			}
+			private function onMakeActiveResult(event:ResultEvent):void{
+				PopUpManager.removePopUp(this);
+				Alert.show("thank you for submitting the report");
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+
+
+		<mx:RemoteObject 
+			id="zendAMF" 
+			destination="zend" 
+			showBusyCursor="true" 
+			source="sightingFunctions">
+			<mx:method 
+				name="createReport" 
+				result="onCreateReportResult(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<sightingD>
+						{null}
+					</sightingD>	
+				</mx:arguments>
+			</mx:method>
+			<mx:method 
+				name="makeActive" 
+				result="onMakeActiveResult(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<sightingID>
+						{null}
+					</sightingID>	
+				</mx:arguments>
+			</mx:method>
+			
+		</mx:RemoteObject>
+		<mx:RemoteObject 
+			id="zendAMFUploader" 
+			destination="zend" 
+			showBusyCursor="true" 
+			source="uploaderFunctions">
+			<mx:method 
+				name="uploadSightingPic" 
+				result="uploadHandler(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<sightingid>
+						{null}
+					</sightingid>
+					<picture>
+						{null}
+					</picture>
+				</mx:arguments>
+			</mx:method>
+		</mx:RemoteObject>
+	</fx:Declarations>
+	<s:states>
+		<s:State name="locationState"/>
+		<s:State name="pictureState"/>
+	</s:states>
+	
+	<mx:Form id="editReportForm">
+		
+		
+		<mx:VBox includeIn="locationState">
+			<mx:Label text = "Location Sighted"/>
+			<mx:Form>
+				<mx:FormItem label = "street address 1 : ">
+					<mx:TextInput 
+						id="addressLine1"/>
+				</mx:FormItem>
+				<mx:FormItem label = "street address 2 : ">
+					<mx:TextInput 
+						id="addressLine2"/>
+				</mx:FormItem>
+				<mx:FormItem label = "city : ">
+					<mx:TextInput 
+						id="cityInput"/>
+				</mx:FormItem>
+				<mx:FormItem label = "state : ">
+					<mx:TextInput 
+						id="stateInput"/>
+				</mx:FormItem>
+				<mx:FormItem label = "country : ">
+					<mx:TextInput 
+						id="countryInput"/>
+				</mx:FormItem>
+				<mx:FormItem label = "zip : ">
+					<mx:TextInput 
+						id="zipInput"
+						/>
+				</mx:FormItem>
+				<mx:FormItem label = "additional notes : ">
+					<mx:TextArea
+						height = "50"
+						id="longDesrInput"/>
+				</mx:FormItem>
+		
+			</mx:Form>
+		</mx:VBox>
+
+		
+		<mx:HBox includeIn="locationState">
+			<mx:Button 
+				id = "submitButton" 
+				label="next"
+				enabled = "true"
+				click = "submitForm()"
+				/>
+			<mx:Button
+				id = "cancelButton"
+				label = "cancel" 
+				click = "exitForm()"
+				/>
+		</mx:HBox>
+		
+		
+	</mx:Form>
+	<mx:VBox includeIn="pictureState">
+		
+	
+	<mx:HBox >
+		
+		<mx:FormItem label = "picture file : ">
+			<mx:TextInput 
+				id="picturefile"
+				/>
+			<mx:Button
+				id ="browseBTN"
+				label = "browse"
+				click = "addPic()"/>
+		</mx:FormItem>
+		</mx:HBox>
+	<mx:HBox includeIn="pictureState">
+			<mx:Button 
+				id = "submit" 
+				label="submit without a picture"
+				enabled = "true"
+				click = "dontUpload()"
+				/>
+			<mx:Button
+				id = "cancelUploadButton"
+				label = "do not submit" 
+				click = "exitForm()"
+				/>
+		</mx:HBox>
+		</mx:VBox>
+</s:TitleWindow>

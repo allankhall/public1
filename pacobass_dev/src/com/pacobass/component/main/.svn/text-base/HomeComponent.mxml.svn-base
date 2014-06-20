@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 creationComplete = "init()"
+		xmlns:akh="com.pacobass.component.account.*" 
+		xmlns:akhe="com.pacobass.component.everyone.*">
+	<fx:Metadata>
+		[Event(name="updateUserEvent", type = "com.pacobass.event.UpdateUserEvent")]
+		[Event(name="homeCanvasChanged", type = "com.pacobass.event.HomeCanvasChangedEvent")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.pacobass.amfobject.userData;
+			import com.pacobass.component.admin.AdminBox;
+			import com.pacobass.component.contributor.ContributorBox;
+			import com.pacobass.event.HomeCanvasChangedEvent;
+			import com.pacobass.event.UpdateUserEvent;
+			import com.pacobass.util.Constant;
+			import com.pacobass.event.PMarkerClickEvent;
+
+			
+			import flash.filters.BlurFilter;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent; 
+			import mx.effects.WipeDown;
+			import mx.effects.WipeUp;
+		
+			[Bindable]
+			private var _user:userData;
+			
+			private var artistCanvas:Canvas;
+			private var artistBox:ContributorBox;
+			private var adminCanvas:Canvas;
+			private var adminBox:AdminBox;
+		
+			/**
+		 	* setup menus and cnvases
+		 	* @private
+		 	*/
+			private function init():void{
+				_user = new userData();
+				topMenu.filters = [new BlurFilter(0,0,0)];
+				topMenu.enabled = false;
+				topMenu.visible = false;
+				publicGroup.addEventListener(PMarkerClickEvent.CLICKED, markerClickedHandler);
+			}
+		
+			[Bindable]
+			public function set user(user:userData):void{
+				_user = user;
+			}
+		
+			public function get user():userData{
+				return _user;
+			}
+			
+			private function markerClickedHandler(event:PMarkerClickEvent):void{
+				//Alert.show("clicked");
+			}
+		
+			/**
+			* enable menus set user and add appropriate canvasses based on role
+		 	* @public
+		 	* @param user:userData
+			*/
+			public function login(user:userData):void{
+				topMenu.enabled = true;
+ 				fadeIn.play([topMenu]);
+				topMenu.visible = true;
+				this.user = user;
+			
+				if(user.role == "contributor" || user.role == "admin"){
+					artistBox = new ContributorBox();
+					artistCanvas = new Canvas();
+					artistCanvas.label = "instruments";
+					artistCanvas.setStyle("showEffect", wipeDown);
+			//		artistCanvas.setStyle("hideEffect",  wipeUp);
+					artistCanvas.addEventListener(FlexEvent.SHOW, artistCanvasSelected);
+				
+					artistCanvas.addChild(artistBox);
+					homeStack.addChild(artistCanvas);
+				}
+				if(user.role == "admin"){
+					adminBox = new AdminBox();			
+					adminCanvas = new Canvas();
+					adminCanvas.label = Constant.ADMIN_GROUP;
+					adminCanvas.setStyle("showEffect", wipeDown);
+					adminCanvas.setStyle("hideEffect",  wipeUp);
+					adminCanvas.addEventListener(FlexEvent.SHOW, adminCanvasSelected);
+				
+					adminCanvas.addChild(adminBox);
+					homeStack.addChild(adminCanvas);
+				}
+			}
+		
+			/**
+			* disable menus null out user and remove authorized canvasses
+		 	* @public
+		 	*/
+			public function logout():void{
+				homeStack.selectedChild = home;
+				topMenu.enabled = false;
+				this.user = null;
+				topMenu.visible = false;
+				if(homeStack.contains(artistCanvas)){
+					artistCanvas.removeChild(artistBox);
+					homeStack.removeChild(artistCanvas);
+				}
+				if(homeStack.contains(adminCanvas)){
+					adminCanvas.removeChild(adminBox);			
+					homeStack.removeChild(adminCanvas);
+				}
+			}
+		
+			public function fadeMe(obj:Object):void{
+				fadeIn.stop();
+				fadeOut.stop();
+				fadeOut.play([obj]);
+			}
+		
+			public function unfadeMe(obj:Object):void{
+				fadeIn.stop();
+				fadeOut.stop();
+				fadeIn.play([obj]);
+			}
+		
+			/**
+		 	* keep user info current after update
+		 	* @private
+		 	*/
+			private function setUser():void{
+				updateBox.user = this._user;
+				updateBox.resetForm();
+				canvasSelected(Constant.EDIT_GROUP);
+			}
+		
+			/**
+		 	* respod to when admin canvas is hown
+		 	* @private
+		 	* @param show event
+		 	*/
+			private function adminCanvasSelected(e:FlexEvent):void{
+				canvasSelected(Constant.ADMIN_GROUP);
+			}
+		
+			/**
+		 	* respond to when artist canvas is shown
+		 	* @private
+		 	* @param show event
+		 	*/
+			private function artistCanvasSelected(E:FlexEvent):void{
+				//reset to list instruments
+				//fades out before show
+				//artistBox.showCanvas(Constant.INSTBB_VIEW);
+				//update left menu
+				canvasSelected(Constant.ARTIST_GROUP);
+			}
+		
+			/**
+		 	* let parent know the canvas has changed
+		 	* @private
+		 	* @param canves id
+		 	*/
+			private function canvasSelected(selectedCanvas:String):void{
+				dispatchEvent(new HomeCanvasChangedEvent(selectedCanvas));
+				//ugly ugly hack
+				publicGroup.resetView();
+			}
+		
+			public function changeInsCVS(cvs:String):void{
+				artistBox.showCanvas(cvs);
+			}
+	
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<mx:Fade id="fadeIn" alphaFrom="{topMenu.alpha}" alphaTo="1.0" duration = "1000"/>
+		<mx:Fade id="fadeOut" alphaFrom="{topMenu.alpha}" alphaTo="0.1" duration = "500" />
+		<mx:WipeDown id="wipeDown" duration = "500" />
+		<mx:WipeUp id = "wipeUp" duration = "500" />
+	</fx:Declarations>
+	<mx:VBox id="mainBox">
+		<mx:TabBar 
+				id = "topMenu" 
+				rollOver="unfadeMe(topMenu)" 
+				rollOut="fadeMe(topMenu)"  
+				dataProvider="{homeStack}"/>
+
+		<mx:ViewStack id="homeStack" height = "700" width = "850" >
+			<mx:Canvas 
+					id = "home" 
+					label="home"
+					
+					hide = "publicGroup.hideMap()"
+					show = 'canvasSelected(Constant.DEFAULT_GROUP)'>
+				<akhe:PublicGroup id = "publicGroup"
+								 />
+				<!--<mx:Label text="DEFAULT"/>
+				<mx:Text text = "DEMO ACCOUNT: username -> 'pacobass', password -> 'pacobass'" y="26" fontWeight="bold" color="#C72018" x="10"/> 
+				<mx:Text x="23" y="69" text="THE IDEA:&#xd;Register your musical instrument serial number. If it is ever stolen create an alert that can be checked quickly on any mobile device. Let us be an amber-alert for your favorite axe. &#xd;&#xd;&#xd;UPDATED LAUNCH TIMELINE:&#xd;Account pre-registration now open!&#xd;Serial registration now open!&#xd;Picture upload now open!&#xd;Stolen alert enhancement July 2011&#xd;Mobile apps released Aug 2011&#xd;Facebook and Twitter integration Oct 2011" width="370" height="190"/>-->
+			</mx:Canvas>
+			<mx:Canvas 
+					id = "ACCOUNT_DETAILS" 
+					label="view account"
+					showEffect = "{wipeDown}"
+					hideEffect = "{wipeUp}"
+					show = 'canvasSelected(Constant.DETAILS_GROUP)'>
+	
+				<mx:VBox id = "details">
+					<mx:Label text = "ACCOUNT DETAILS"/>
+					<mx:Label id = "statusLabel" text = "NAME : {user.firstName} {user.lastName}"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        />
+					<mx:Label id  = "emailLabel" text = "EMAIL : {user.email}"/>
+					<mx:Label id = "roleLabel" text = "ROLE : {user.role}"/>
+				</mx:VBox>
+			</mx:Canvas>
+			<mx:Canvas 
+					id = "EDIT_ACCOUNT" 
+					label="edit account" 
+					show="setUser()"
+					showEffect = "{wipeDown}"
+					hideEffect = "{wipeUp}"
+					>
+				<akh:UpdateBox id = "updateBox" />
+			</mx:Canvas>
+		</mx:ViewStack>
+	</mx:VBox>
+</mx:VBox>

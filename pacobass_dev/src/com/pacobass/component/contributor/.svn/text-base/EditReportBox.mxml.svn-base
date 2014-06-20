@@ -1,0 +1,364 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox 
+		xmlns:mx="library://ns.adobe.com/flex/mx"
+		xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" 
+		xmlns:gmaps="com.google.maps.*"
+		width="100%" height="100%" creationComplete="init()" show = "populateForm()"
+		hide = "hideMap()">
+	<fx:Metadata>
+		[Event(name="instrumentHelper", type = "com.pacobass.event.InstrumentHelperEvent")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.google.maps.*;
+			import com.google.maps.InfoWindowOptions;
+			import com.google.maps.LatLng;
+			import com.google.maps.Map;
+			import com.google.maps.MapEvent;
+			import com.google.maps.MapMouseEvent;
+			import com.google.maps.MapType;
+			import com.google.maps.controls.ZoomControl;
+			import com.google.maps.overlays.Marker;
+			import com.google.maps.overlays.MarkerOptions;
+			import com.google.maps.services.ClientGeocoder;
+			import com.google.maps.services.ClientGeocoderOptions;
+			import com.google.maps.services.GeocodingEvent;
+			import com.pacobass.amfobject.instrumentData;
+			import com.pacobass.amfobject.pMarkerData;
+			import com.pacobass.amfobject.reportData;
+			import com.pacobass.event.InstrumentHelperEvent;
+			import com.pacobass.util.Constant;
+			import com.pacobass.util.DateUtil;
+			import com.pacobass.util.PMapMarker;
+			
+			import flash.events.Event;
+			
+			import mx.controls.Alert;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			private var _instrument:instrumentData;
+			private var _report:reportData;
+			private var zipvalidator:Validator;
+			private var onlyActiveBool:Boolean;
+			private var _pMarkerD:pMarkerData;
+			
+			[Bindable]
+			public function get pMarkerD():pMarkerData
+			{
+				return _pMarkerD;
+			}
+
+			public function set pMarkerD(value:pMarkerData):void
+			{
+				_pMarkerD = value;
+			}
+
+			private function init():void{
+				onlyActiveBool = true;
+				zipvalidator = new Validator();
+				zipvalidator.required = true;
+				zipvalidator.source = zipInput;
+				zipvalidator.property = "text";
+				zipvalidator.requiredFieldError = "a zip code is required, if no zipcode exists enter 0";
+				populateForm();
+				Alert.show(report.reportid.toString());
+				//_report = new reportData();
+			}
+			
+			[Bindable]
+			public function set instrument(instrument:instrumentData):void{
+				_instrument = instrument;
+			}
+			public function get instrument():instrumentData{
+				return _instrument;
+			
+			}
+			[Bindable]
+			public function set report(report:reportData):void{
+				_report = report;
+			}
+			public function get report():reportData{
+				return _report;
+			
+			}
+			
+			/**
+			 * reset form and send cancel event to parent
+			 * @private
+			 */
+			private function cancel(button:String):void{
+				updateButton.enabled = false;
+				resetForm();
+				dispatchEvent(new InstrumentHelperEvent(button));
+			}
+			
+						/**
+			 * valdate all fields and set submit buton
+			 * @private
+			 */
+			private function enableSubmit():void{
+				updateButton.enabled = ((zipvalidator.validate().type == ValidationResultEvent.VALID) && onlyActiveBool);	
+			}
+			
+			
+						/**
+			 * alert on error from service call
+			 * @private
+			 */
+			private function onError(err:FaultEvent):void {
+				//Alert.show(err.message.toString(),"ERROR!");
+				Alert.show(Constant.GENERAL_ERROR);
+			}
+			
+			public function resetForm():void
+			{
+				addressLine1.text = "";
+				addressLine2.text = "";
+				cityInput.text = "";
+				stateInput.text = "";
+				countryInput.text = "";
+				zipInput.text = "";
+				longDesrInput.text = "";
+				updateButton.enabled = false;
+
+			}
+			
+			private function updateReportBTN():void{
+				doGeocode();
+
+			}
+			private function sendReport():void{
+				pMarkerD.dateStolen = DateUtil.asDateToMySQL(dateStolen.selectedDate);
+				pMarkerD.dateRecovered = '';
+				pMarkerD.status = statusCB.selectedItem.toString();
+				pMarkerD.description = longDesrInput.text;
+				pMarkerD.addressLine1 = addressLine1.text;
+				pMarkerD.addressLine2 = addressLine2.text;
+				pMarkerD.city = cityInput.text;
+				pMarkerD.state = stateInput.text;
+				pMarkerD.country = countryInput.text;
+				pMarkerD.zip = zipInput.text;
+				zendAMF.updateReport(pMarkerD);
+			}
+			
+			private function onUpdateReportResult(e:ResultEvent):void{
+				if(e.result){
+					cancel(Constant.CANCEL_LINK);
+					alertmap.clearOverlays();
+					populateForm();
+				}else{
+					Alert.show(Constant.REPORT_UPDATE_ERR);	
+				}
+			}
+			
+			private function populateForm():void{
+				zendAMF.getReport(instrument.instrumentid);
+			}
+			
+			private function onlyActive(evt:Event):void{
+				if(evt.currentTarget.selectedItem == Constant.REPORT_ACTIVE){
+					zendAMF.checkActive(instrument.instrumentid, report.reportid);
+				}
+			}
+			
+			private function onCheckActiveResult(evt:ResultEvent):void{
+				onlyActiveBool = evt.result;
+				enableSubmit();
+			}
+		
+			private function geocodeSuccessHandler(event:GeocodingEvent):void {
+				var placemarks:Array = event.response.placemarks;
+				if (placemarks.length > 0) {
+					alertmap.setCenter(placemarks[0].point);
+					var marker:Marker = new Marker(placemarks[0].point);
+					alertmap.addOverlay(marker);
+					pMarkerD.lat = placemarks[0].point.lat();
+					pMarkerD.lng = placemarks[0].point.lng();
+					sendReport();
+				}else{
+					sendReport();
+				}
+			}
+			
+			private function geocodeFailureHandler(event:GeocodingEvent):void {
+				trace("Geocoding failed");
+			}
+
+			
+			private function onGetReportResult(evt:ResultEvent):void{
+				if(evt.result){
+					//if added then reset and list					
+					pMarkerD = evt.result as pMarkerData;
+					statusCB.selectedItem = pMarkerD.status;
+					dateStolen.selectedDate = DateUtil.MySQLToasDate(pMarkerD.dateStolen as String);
+					addressLine1.text = pMarkerD.addressLine1;
+					addressLine2.text = pMarkerD.addressLine2;
+					cityInput.text = pMarkerD.city;
+					stateInput.text = pMarkerD.state;
+					countryInput.text = pMarkerD.country;
+					zipInput.text = pMarkerD.zip;
+					longDesrInput.text = pMarkerD.description;
+					updateButton.enabled = true;
+					addChild(alertmap);
+					//doGeocode();
+					
+					alertmap.setCenter(new LatLng(pMarkerD.lat,pMarkerD.lng));
+					var marker:PMapMarker = new PMapMarker(pMarkerD, alertmap.getCenter(), new MarkerOptions({draggable:false}));
+
+					alertmap.addOverlay(marker);
+				}else{
+					Alert.show(Constant.ADD_INSTR_ERROR);
+				}
+			}
+			
+			private function showmap(event:Event):void {
+				Security.allowDomain("maps.googleapis.com/maps/flashapi");
+				Security.allowInsecureDomain("maps.googleapis.com");
+				Security.allowInsecureDomain("google.com"); 
+				Security.allowDomain("google.com");
+
+			}
+			
+			
+			private function doGeocode():void {
+				// Geocoding example
+				
+				var geocoder:ClientGeocoder = new ClientGeocoder();
+				geocoder.addEventListener(GeocodingEvent.GEOCODING_SUCCESS, geocodeSuccessHandler);
+				geocoder.addEventListener(GeocodingEvent.GEOCODING_FAILURE, geocodeFailureHandler);
+				geocoder.geocode(addressLine1.text + " " + addressLine2.text + " " + cityInput.text + " " + stateInput.text + " " + zipInput.text);
+			}
+			
+			private function onMapPreinitialize(event:Event):void {
+				var myMapOptions:MapOptions = new MapOptions();
+				myMapOptions.zoom = 14;
+				myMapOptions.center = new LatLng(40.736072,-73.992062);
+				myMapOptions.mapType = MapType.NORMAL_MAP_TYPE;
+				this.alertmap.setInitOptions(myMapOptions);
+			}
+			
+			private function hideMap():void{
+				alertmap.clearOverlays();
+				removeChild(alertmap);
+				
+			}
+			
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<mx:RemoteObject 
+			id="zendAMF" 
+			destination="zend" 
+			showBusyCursor="true" 
+			source="reportFunctions">
+			<mx:method 
+				name="updateReport" 
+				result="onUpdateReportResult(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<reportD>
+						{null}
+					</reportD>	
+				</mx:arguments>
+			</mx:method>
+			<mx:method 
+				name="getReport" 
+				result="onGetReportResult(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<instrumentid>
+						{null}
+					</instrumentid>
+				</mx:arguments>
+			</mx:method>
+			<mx:method 
+				name="checkActive" 
+				result="onCheckActiveResult(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<instrumentid>
+						{null}
+					</instrumentid>
+					<reportid>
+						{null}
+					</reportid>
+				</mx:arguments>
+			</mx:method>
+		</mx:RemoteObject>
+	</fx:Declarations>	
+	
+	<mx:Label text="EDIT REPORT"/>
+	<mx:Form id="editReportForm">
+		<mx:FormItem label = "status : ">
+   			<mx:ComboBox 
+   					id = "statusCB" 
+   					dataProvider="{Constant.REPORT_STATUS_ARRY}"
+   					change = "onlyActive(event)"/> 
+     	</mx:FormItem>
+		<mx:FormItem label = "instrument : ">
+			<mx:TextInput 
+					id="nicknameInput" text="{instrument.nickname} : {instrument.serial}" editable = "false"/>
+		</mx:FormItem>
+		<mx:FormItem label = "date stolen/lost : ">
+			<mx:DateField id = "dateStolen">
+			</mx:DateField> 
+		</mx:FormItem>
+		<mx:VBox borderStyle = "solid">
+			<mx:Label text = "Last Known Location"/>
+			<mx:Form>
+				<mx:FormItem label = "street address 1 : ">
+					<mx:TextInput 
+						id="addressLine1"/>
+				</mx:FormItem>
+				<mx:FormItem label = "street address 2 : ">
+					<mx:TextInput 
+						id="addressLine2"/>
+				</mx:FormItem>
+				<mx:FormItem label = "city : ">
+					<mx:TextInput 
+							id="cityInput"/>
+				</mx:FormItem>
+				<mx:FormItem label = "state : ">
+					<mx:TextInput 
+							id="stateInput"/>
+				</mx:FormItem>
+				<mx:FormItem label = "country : ">
+					<mx:TextInput 
+							id="countryInput"/>
+				</mx:FormItem>
+				<mx:FormItem label = "zip : ">
+					<mx:TextInput 
+							id="zipInput"
+							change = "enableSubmit()"/>
+				</mx:FormItem>
+			</mx:Form>
+		</mx:VBox>
+		<mx:FormItem label = "additional notes : ">
+			<mx:TextArea
+					height = "50"
+					id="longDesrInput"/>
+		</mx:FormItem>
+		<mx:HBox>
+			<mx:Button 
+					id = "updateButton" 
+					label="update"
+					enabled = "true"
+					click = "updateReportBTN()"/>
+			<mx:Button
+					id = "cancelButton"
+					label = "cancel" 
+					click = 'cancel(Constant.CANCEL_LINK)'/>
+		</mx:HBox>
+	</mx:Form>
+	
+	<gmaps:Map id="alertmap" width="30%" height="30%" key="ABQIAAAAdqhTWe-Va6NKmCnqtKJJfRTJgbA5_8XGz5Krgmb_EQeHeNXgMhRKFmTsOwZIJzP3GrHSEbtT4frm3w" sensor="true" mapevent_mapready="showmap(event)"
+			   mapevent_mappreinitialize="onMapPreinitialize(event)"/>
+
+
+</mx:VBox>

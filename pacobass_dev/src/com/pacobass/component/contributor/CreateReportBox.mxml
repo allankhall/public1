@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox 
+	xmlns:mx="library://ns.adobe.com/flex/mx"
+	xmlns:fx="http://ns.adobe.com/mxml/2009" 
+	width="100%" height="100%" creationComplete = "init()" show = "resetForm()">
+	<fx:Metadata>
+		[Event(name="instrumentHelper", type = "com.pacobass.event.InstrumentHelperEvent")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.google.maps.LatLng;
+			import com.google.maps.services.ClientGeocoder;
+			import com.google.maps.services.ClientGeocoderOptions;
+			import com.google.maps.services.GeocodingEvent;
+			import com.pacobass.amfobject.instrumentData;
+			import com.pacobass.amfobject.reportData;
+			import com.pacobass.event.InstrumentHelperEvent;
+			import com.pacobass.util.Constant;
+			import com.pacobass.util.DateUtil;
+			
+			import mx.controls.Alert;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+
+			private var _instrument:instrumentData;
+			private var zipvalidator:Validator;
+			[Bindable]
+			private var geocoder:ClientGeocoder;
+			[Bindable]
+			private var lat:Number;
+			[Bindable]
+			private var lng:Number;
+
+			
+			/**
+			 * setup validators and valid fields bools
+			 * @private
+			 */
+			private function init():void{
+				zipvalidator = new Validator();
+				zipvalidator.required = true;
+				zipvalidator.source = zipInput;
+				zipvalidator.property = "text";
+				zipvalidator.requiredFieldError = "a zip code is required, if no zipcode exists enter 0";
+				geocoder = new ClientGeocoder();
+				geocoder.addEventListener(GeocodingEvent.GEOCODING_SUCCESS, geocodeSuccessHandler);
+				geocoder.addEventListener(GeocodingEvent.GEOCODING_FAILURE, geocodeFailureHandler);
+			}
+			
+			[Bindable]
+			public function set instrument(instrument:instrumentData):void{
+				_instrument = instrument;
+			}
+			public function get instrument():instrumentData{
+				return _instrument;
+			
+			}
+			
+			/**
+			 * reset form and send cancel event to parent
+			 * @private
+			 */
+			private function cancel(button:String):void{
+				createButton.enabled = false;
+				resetForm();
+				dispatchEvent(new InstrumentHelperEvent(button));
+			}
+			
+			/**
+			 * valdate all fields and set submit buton
+			 * @private
+			 */
+			private function enableSubmit():void{
+				createButton.enabled = (zipvalidator.validate().type == ValidationResultEvent.VALID)	
+			}
+			
+		
+			public function resetForm():void
+			{
+				cityInput.text = "";
+				stateInput.text = "";
+				countryInput.text = "";
+				zipInput.text = "";
+				longDesrInput.text = "";
+				createButton.enabled = false;
+
+			}
+			
+			public function createSoon():void{
+				Alert.show("Stolen Alert creation is coming soon!");
+			}
+			
+			/**
+			 * alert on error from service call
+			 * @private
+			 */
+			private function onError(err:FaultEvent):void {
+				Alert.show(Constant.GENERAL_ERROR);
+			}
+			
+			/**
+			 * check to see if user is already registered
+			 * @private
+			 */
+			private function createReport():void{
+				try{
+					getLatLng(addressLine1.text + " " + addressLine2.text + " " + cityInput.text + " " + stateInput.text + " " + zipInput.text);					
+				}catch(e:Error){
+					Alert.show("Could not find address provided");
+				}				
+			}
+			
+			private function sendReport():void{
+				var reportD:reportData = new reportData();
+				reportD.instrumentid =  instrument.instrumentid;
+				reportD.description = longDesrInput.text;
+				reportD.addressLine1 = addressLine1.text;
+				reportD.addressLine2 = addressLine2.text;
+				reportD.city = cityInput.text;
+				reportD.state = stateInput.text;
+				reportD.country = countryInput.text;
+				reportD.zip = zipInput.text;
+				reportD.dateStolen = DateUtil.asDateToMySQL(dateStolen.selectedDate);
+				reportD.lat = lat;
+				reportD.lng = lng;
+				
+				try{
+					zendAMF.createReport(reportD);
+				}catch(e:TypeError){
+					
+				}
+				
+			}
+
+			private function onCreateReportResult(evt:ResultEvent):void {
+				if(evt.result){
+					//if added then reset and list
+					resetForm();
+					dispatchEvent(new InstrumentHelperEvent(Constant.CANCEL_LINK));
+				}else{
+					Alert.show(Constant.ADD_INSTR_ERROR);
+				}
+			}
+			
+			private function getLatLng(address:String):void{
+				geocoder.geocode(address);
+			}
+			
+			private function geocodeSuccessHandler(event:GeocodingEvent):void{
+				var placemarks:Array = event.response.placemarks;
+				if (placemarks.length > 0) {
+					lat = placemarks[0].point.lat();
+					lng = placemarks[0].point.lng();
+					sendReport();
+				}
+			}
+			private function geocodeFailureHandler(event:GeocodingEvent):void{
+				//Alert.show("fail");
+			}
+
+		]]>
+	</fx:Script>
+
+	
+		<mx:Label text="CREATE REPORT"/>
+		<mx:Form id="createReportForm">
+			<mx:FormItem label = "instrument : ">
+				<mx:TextInput 
+						id="nicknameInput" text="{instrument.nickname} : {instrument.serial}" editable = "false"/>
+				</mx:FormItem>
+				<mx:FormItem label = "date stolen/lost : ">
+					<mx:DateField id = "dateStolen">
+	   	 			</mx:DateField> 
+				</mx:FormItem>
+				<mx:VBox borderStyle = "solid">
+					<mx:Label text = "Last Known Location"/>
+					<mx:Form>
+						<mx:FormItem label = "street address 1 : ">
+							<mx:TextInput 
+								id="addressLine1"/>
+						</mx:FormItem>
+						<mx:FormItem label = "street address 2 : ">
+							<mx:TextInput 
+								id="addressLine2"/>
+						</mx:FormItem>
+						<mx:FormItem label = "city : ">
+							<mx:TextInput 
+									id="cityInput"/>
+						</mx:FormItem>
+						<mx:FormItem label = "state : ">
+							<mx:TextInput 
+									id="stateInput"/>
+						</mx:FormItem>
+						<mx:FormItem label = "country : ">
+							<mx:TextInput 
+									id="countryInput"/>
+						</mx:FormItem>
+						<mx:FormItem label = "zip : ">
+							<mx:TextInput 
+									id="zipInput"
+									change = "enableSubmit()"/>
+						</mx:FormItem>
+					</mx:Form>
+				</mx:VBox>
+				<mx:FormItem label = "additional notes : ">
+					<mx:TextArea
+							height = "50"
+							id="longDesrInput"/>
+				</mx:FormItem>
+				<mx:HBox>
+					<mx:Button 
+							id = "createButton" 
+							label="create"
+							enabled = "false"
+							click = "createReport()"/>
+					<mx:Button
+							id = "cancelButton"
+							label = "cancel" 
+							click = 'cancel(Constant.CANCEL_LINK)'
+					/>
+				</mx:HBox>
+			</mx:Form>
+	<fx:Declarations>
+		
+			<mx:RemoteObject 
+					id="zendAMF" 
+					destination="zend" 
+					showBusyCursor="true" 
+					source="reportFunctions">
+				<mx:method 
+						name="createReport" 
+						result="onCreateReportResult(event)"  
+						fault="onError(event)">
+					<mx:arguments>
+						<reportD>
+							{null}
+						</reportD>
+					</mx:arguments>
+				</mx:method>
+			</mx:RemoteObject>
+		</fx:Declarations>
+</mx:VBox>

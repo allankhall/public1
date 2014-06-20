@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:fx="http://ns.adobe.com/mxml/2009"  
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:akh="com.pacobass.component.contributor.*"
+		 width="100%" height="100%" creationComplete="init()">
+	<fx:Metadata>
+		[Event(name="InstrumentDGHelperEvent", type = "com.pacobass.event.homecomponent.InstrumentDGHelperEvent")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.pacobass.amfobject.instrumentData;
+			import com.pacobass.amfobject.pictureData;
+			import com.pacobass.amfobject.pictureData2;
+			import com.pacobass.event.InstrumentHelperEvent;
+			import com.pacobass.event.homecomponent.InstrumentDGHelperEvent;
+			import com.pacobass.event.instrument.PictureListChangeEvent;
+			import com.pacobass.instrument.InstrumentDGRow;
+			import com.pacobass.util.Constant;
+			import com.pacobass.util.InstrumentConverter;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IViewCursor;
+			import mx.controls.Alert;
+			import mx.events.ItemClickEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+
+			[Bindable]
+			private var _instruments:ArrayCollection;
+			[Bindable]
+			private var bbarray:ArrayCollection;
+			[Bindable]
+			private var stolenBool:Boolean;
+			[Bindable]
+			private var _instrumentPicURIs:ArrayCollection;
+		
+			private function init():void{
+				instruments = new ArrayCollection();
+				getAllInstruments();
+				bbarray = new ArrayCollection(Constant.INSTDGBB_ARRAY);
+				stolenBool = false;
+				instrumentPicURIs = new ArrayCollection();
+			}
+		
+			[Bindable]
+			private function get instruments():ArrayCollection{
+				return _instruments;
+			}
+			private function set instruments(instruments:ArrayCollection):void{
+				_instruments = instruments;
+			}
+			
+			[Bindable]
+			private function get instrumentPicURIs():ArrayCollection{
+				return _instrumentPicURIs;
+			}
+			private function set instrumentPicURIs(instrumentPicURIs:ArrayCollection):void{
+				_instrumentPicURIs = instrumentPicURIs;
+			}
+		
+		
+			private function getAllInstruments():void{
+				zendAMF.getAllInstruments();
+			}
+			
+			private function getAllInstrumentsHandler(e:ResultEvent):void{
+				instdgbb.alpha = 0.0;
+				instdgbb.enabled = false;
+				picBox.visible = false;
+				//map array to arraycollection because no such type in php
+				var inst:Array = new Array();
+				inst = e.result as Array;
+				//below temp above perm
+				var instTmp:Array = new Array();
+				for (var idx:int = 0; idx < inst.length; idx++){
+					var instDGRow:InstrumentDGRow = new InstrumentDGRow();
+					instDGRow.instrumentid = inst[idx].instrumentid;
+					instDGRow.userid = inst[idx].userid;
+					instDGRow.nickname = inst[idx].nickname;
+					instDGRow.serial = inst[idx].serial;
+					instDGRow.description = inst[idx].description;
+					instDGRow.stolen = inst[idx].stolen;
+					instDGRow.select = false;
+					instTmp.push(instDGRow);
+				}
+				instruments = new ArrayCollection(instTmp);
+				//instruments = e.result as Array;
+			}
+
+			
+			private function onError(err:FaultEvent):void {
+				Alert.show(Constant.GENERAL_ERROR);
+			}
+			
+			public function redrawDataGrid():void{
+				//get info from DB and refresh display
+				getAllInstruments();
+				instruments.refresh();
+				instrumentsGrid.invalidateDisplayList();
+			}
+			
+			public function deleteInstrument(data:Object):void{
+				var inst:instrumentData = new instrumentData();
+				inst = data as instrumentData;
+				zendAMF.deleteInstrument(inst.instrumentid); 
+				zendAMFUploader.deleteInstrumentPics(inst.instrumentid);
+			}
+			
+			public function deleteSelected():void{
+				deleteInstrument(getSelected());
+				instdgbb.enabled = false;
+				fadeMe(instdgbb);
+			}
+			
+			private function getSelected():InstrumentDGRow{
+				var dp:Object=instrumentsGrid.dataProvider;
+				var cursor:IViewCursor=dp.createCursor();
+				while( !cursor.afterLast ){
+					if (cursor.current.select)return cursor.current as InstrumentDGRow;
+					cursor.moveNext();
+					}
+				return null;		
+			}
+			
+			private function onIsStolenResultHandler(e:ResultEvent):void{
+				stolenBool = e.result as Boolean;
+				if(stolenBool)bbarray[3] = Constant.INSTDGBB_EDITALERT;
+				else bbarray[3] = Constant.INSTDGBB_CREATEALERT;
+				bbarray.refresh();
+				instdgbb.invalidateDisplayList();
+			}
+			
+			private function updateInstrumentHandler(e:ResultEvent):void{
+				if(e.result as Boolean){
+					redrawDataGrid();
+				}else{
+					Alert.show("the update was not successful");
+				}
+			}
+			
+			private function deleteInstrumentPicsHandler(e:ResultEvent):void{
+				//no need to take action on succesful delete as it is already handled in updateInstrumentHandler
+			}
+			
+			public function dgSelectBox(data:Object, selectedST:Boolean):void{
+				var inst:InstrumentDGRow = new InstrumentDGRow();
+				inst = data as InstrumentDGRow;
+				zendAMF.isStolen(inst.instrumentid);
+				zendAMF.getPictureURI(inst.instrumentid, true);
+				var dp:Object=instrumentsGrid.dataProvider;
+				var cursor:IViewCursor=dp.createCursor();
+				
+				while( !cursor.afterLast ){
+					if(cursor.current.instrumentid != inst.instrumentid){
+						cursor.current.select = false;
+					}else{
+						cursor.current.select = selectedST;
+					}
+ 					cursor.moveNext();
+				}
+				if(selectedST){
+					 instdgbb.enabled = true;
+					 unfadeMe(instdgbb);
+					unfadeMePBox(picBox);
+					picBox.visible = true;
+				}else{
+					instdgbb.enabled = false;
+					stolenBool = false;
+					bbarray[3] = Constant.INSTDGBB_CREATEALERT;
+					instdgbb.invalidateDisplayList();
+					fadeMe(instdgbb);
+					fadeMePBox(picBox);
+				}
+				instrumentsGrid.invalidateDisplayList();			
+			}
+						
+			private function getPictureURIHandler(e:ResultEvent):void{
+				//instrumentPicURIs = e.result as Array;
+				//map aaray to arraycollection because no such type in php
+				var pic:Array = new Array();
+				pic = e.result as Array;
+				
+				var picTmp:Array = new Array();
+				for (var idx:int = 0; idx < pic.length; idx++){
+					var pd:pictureData2 = new pictureData2();
+					pd.fullPath = pic[idx].fullPath;
+					pd.picID = pic[idx].picID;
+					pd.instrumentID = pic[idx].instrumentID;
+					pd.serial = pic[idx].serial;
+					picTmp.push(pd);
+				}
+				instrumentPicURIs = new ArrayCollection(picTmp);				
+				picBox.pictureURIs = instrumentPicURIs;
+			}
+				
+			public function fadeMe(obj:Object):void{
+				fadeIn.stop();
+				fadeOut.stop();
+				fadeOut.play([obj]);
+			}
+		
+			public function unfadeMe(obj:Object):void{
+				fadeIn.stop();
+				fadeOut.stop();
+				fadeIn.play([obj]);
+			}
+			
+			public function fadeMePBox(obj:Object):void{
+				fadeInPBox.stop();
+				fadeOutPBox.stop();
+				fadeOutPBox.play([obj]);
+			}
+			
+			public function unfadeMePBox(obj:Object):void{
+				fadeInPBox.stop();
+				fadeOutPBox.stop();
+				fadeInPBox.play([obj]);
+			}
+		
+			public function instdgbbClick(evt:ItemClickEvent):void{
+				fadeMePBox(picBox);
+				if(evt.label == Constant.INSTDGBB_DELETE){
+					deleteSelected();
+				}else if(evt.label == Constant.INSTDGBB_VIEW){
+					dispatchEvent(new InstrumentDGHelperEvent(Constant.INSTDGBB_VIEW, InstrumentConverter.DG2Data(getSelected())));
+				}else if(evt.label == Constant.INSTDGBB_EDIT){
+					dispatchEvent(new InstrumentDGHelperEvent(Constant.INSTDGBB_EDIT, InstrumentConverter.DG2Data(getSelected())));
+				}else if(evt.label == Constant.INSTDGBB_CREATEALERT){
+					dispatchEvent(new InstrumentDGHelperEvent(Constant.INSTDGBB_CREATEALERT, InstrumentConverter.DG2Data(getSelected())));
+				}else if(evt.label == Constant.INSTDGBB_EDITALERT){
+					dispatchEvent(new InstrumentDGHelperEvent(Constant.INSTDGBB_EDITALERT, InstrumentConverter.DG2Data(getSelected())));
+				}else{
+					Alert.show("functionality not currently supported");
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<mx:Fade id="fadeIn" alphaFrom="{instdgbb.alpha}" alphaTo="1.0" duration = "1000"/>
+		<mx:Fade id="fadeOut" alphaFrom="{instdgbb.alpha}" alphaTo="0.0" duration = "500" />
+		<mx:Fade id="fadeInPBox" alphaFrom="{picBox.alpha}" alphaTo="1.0" duration = "1000"/>
+		<mx:Fade id="fadeOutPBox" alphaFrom="{picBox.alpha}" alphaTo="0.0" duration = "500" effectEnd = "picBox.visible = false;"/>
+		
+		<mx:RemoteObject 
+			id="zendAMF" 
+			destination="zend" 
+			showBusyCursor="true" 
+			source="instrument_functions">
+			<mx:method 
+				name="getAllInstruments" 
+				result="getAllInstrumentsHandler(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+				</mx:arguments>
+			</mx:method>
+			<mx:method
+				name = "deleteInstrument"
+				result = "updateInstrumentHandler(event)"
+				fault = "onError(event)">
+				<mx:arguments>
+					<instrumentid>
+						{null}
+					</instrumentid>
+				</mx:arguments>
+			</mx:method>
+			<mx:method 
+				name="isStolen" 
+				result="onIsStolenResultHandler(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<instrumentid>
+						{null}
+					</instrumentid>
+				</mx:arguments>
+			</mx:method>
+			<mx:method 
+				name="getPictureURI" 
+				result="getPictureURIHandler(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<instrumentid>
+						{null}
+					</instrumentid>
+					<addpic>
+						{null}
+					</addpic>
+				</mx:arguments>
+			</mx:method>
+		</mx:RemoteObject>
+		<mx:RemoteObject 
+			id="zendAMFUploader" 
+			destination="zend" 
+			showBusyCursor="true" 
+			source="uploaderFunctions">
+			<mx:method 
+				name="deleteInstrumentPics" 
+				result="deleteInstrumentPicsHandler(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<instrumentid>
+						{null}
+					</instrumentid>
+				</mx:arguments>
+			</mx:method>
+		</mx:RemoteObject>
+		
+	</fx:Declarations>
+	<mx:Label text="INSTRUMENTS"/>
+	<mx:DataGrid id = "instrumentsGrid" dataProvider = "{instruments}" width="750" maxHeight="500">
+		<mx:columns>
+			<mx:DataGridColumn
+					id = "checkboxCLM"
+					dataField="select"
+					width = "50">
+				<mx:itemRenderer>
+					<fx:Component id = "instrumentCB">
+						<mx:CheckBox
+								selected = "{data.select}"
+							 	click="outerDocument.dgSelectBox(data, selected)"
+								/>
+					</fx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>  
+			<mx:DataGridColumn
+					dataField = "nickname"
+					headerText = "nickname"
+					width = "150"/>
+			<mx:DataGridColumn
+					dataField = "serial"
+					headerText = "serial"
+					width = "100"/>
+			<mx:DataGridColumn
+					dataField = "description"
+					headerText = "description"/>
+		</mx:columns>
+	</mx:DataGrid>
+	
+	<mx:ButtonBar id = "instdgbb"
+			dataProvider="{bbarray}"
+			enabled="false"
+			alpha = "0.0"
+			itemClick = "instdgbbClick(event)" />
+	<akh:InstrumentPicturesBox id = "picBox"
+		PictureListChangeEvent = "zendAMF.getPictureURI(event.instID);">
+	</akh:InstrumentPicturesBox>
+
+</mx:VBox>

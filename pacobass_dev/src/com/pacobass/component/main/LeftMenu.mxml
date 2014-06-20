@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:akh_admin = "com.pacobass.component.admin.*">
+	<fx:Metadata>
+		[Event(name="instbbCLKEvent", type = "com.pacobass.event.leftmenu.instbbCLKEvent")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.pacobass.component.admin.AdminMenu;
+			import com.pacobass.event.leftmenu.instbbCLKEvent;
+			import com.pacobass.util.Constant;
+			
+			import mx.controls.Alert;
+			import mx.core.Container;
+			import mx.events.ItemClickEvent;
+            import mx.utils.ObjectUtil;
+
+		
+			public function showMenu(menu:String):void{
+				menuStack.selectedChild = Container(menuStack.getChildByName(menu));
+			}
+			
+			public function reset():void{
+				menuStack.selectedChild = Container(menuStack.getChildByName(Constant.DEFAULT_GROUP));
+			}
+			
+			//let parent know Instrument menu was clicked
+			private function instbbCLK(evt:ItemClickEvent):void {  
+				dispatchEvent(new instbbCLKEvent(evt.label));
+			}
+		
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+
+		<mx:WipeDown id="wipeDown" duration = "200" />
+		<mx:WipeUp id = "wipeUp" duration = "200" />
+	</fx:Declarations>
+	<mx:ViewStack id = "menuStack">
+		<mx:Canvas 
+				id  = "home"
+				showEffect = "{wipeDown}"
+				hideEffect = "{wipeUp}">
+			<mx:Label text = "DEFAULT MENU" height = "250" width="300"/>
+		</mx:Canvas>
+		<mx:Canvas
+				id = "details"
+				showEffect = "{wipeDown}"
+				hideEffect = "{wipeUp}">
+			<mx:Label text = "DETAILS MENU"/>
+		</mx:Canvas>
+		<mx:Canvas
+				id = "editProfile"
+				showEffect = "{wipeDown}"
+				hideEffect = "{wipeUp}">
+			<mx:Label text = "EDIT PROFILE MENU"/>
+		</mx:Canvas>
+		<mx:Canvas id = "artist"
+				showEffect = "{wipeDown}"
+				hideEffect = "{wipeUp}">
+			<!--<mx:Label text="INSTRUMENT MENU"/>-->
+			<mx:ButtonBar id = "instBB"
+					dataProvider ="{Constant.INSTBB_ARRAY}"
+					direction = "vertical"
+					itemClick="instbbCLK(event);">	
+        	</mx:ButtonBar>
+		</mx:Canvas>
+		<mx:Canvas id = "admin"
+				showEffect = "{wipeDown}"
+				hideEffect = "{wipeUp}">
+			<akh_admin:AdminMenu 
+					id  = "adminMenu" 
+					height = "250" 
+					width = "300">
+			</akh_admin:AdminMenu>
+		</mx:Canvas>
+	</mx:ViewStack>
+</mx:VBox>

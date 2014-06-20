@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox
+	xmlns:mx="library://ns.adobe.com/flex/mx"
+	xmlns:fx="http://ns.adobe.com/mxml/2009" 
+	xmlns:s="library://ns.adobe.com/flex/spark" 
+	height = "100%" width = "100%" label="login"
+		creationComplete = "init()">
+
+
+	<fx:Metadata>
+		[Event(name="login", type="com.pacobass.event.LoginEvent")]
+		[Event(name="loginHelper", type = "com.pacobass.event.LoginHelperEvent")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.pacobass.amfobject.userData;
+			import com.pacobass.event.LoginEvent;
+			import com.pacobass.event.LoginHelperEvent;
+			import com.pacobass.util.Constant;
+			import com.pacobass.util.CookieUtil;
+		
+			import mx.controls.Alert;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.states.SetProperty;
+			import mx.states.State;
+			import mx.validators.StringValidator;
+
+			//constants
+			private static const LOGGED_IN_STATE:String = "loggedIn";
+			private static const LOGGED_OUT_STATE:String = "loggedOut";
+
+			//validators and global booleans for valid fields
+			private var usernameValidator:StringValidator;
+			private var passwordValidator:StringValidator;
+			private var usernameValid:Boolean;
+			private var passwordValid:Boolean;
+			
+			//states
+			private var loggedInState:State;
+			private var loggedOutState:State;
+
+			//user details object
+			[Bindable]
+			private var userD:userData;
+			
+			[Bindable]
+			public function set user(user:userData):void{
+				userD = user;
+				//userLabel.text = "Welcome " + userD.firstName + " " + userD.lastName;
+			}
+			
+			public function get user():userData{
+				return userD;
+			}
+			
+			/**
+			 * null out fields disable submit and goto logged out state
+			 * @public
+		     */
+			public function resetForm():void{
+				var username:String;
+				var checked:Boolean;
+				try{
+					username = CookieUtil.getCookie("photography_allankhall_user").toString();
+					checked = true;
+				}catch(e:Error){
+					username = "";
+					checked = false;	
+				}
+				usernameInput.text = username;
+				passwordInput.text = "";
+				rememberMe.selected = checked;
+				enableForm(true);
+				loginButton.enabled = false;
+				currentState = LOGGED_OUT_STATE;
+			}
+
+			/**
+			 * setup states and setup validators and booleans
+			 * @private
+			 */
+			private function init():void{
+				//create empty user
+				userD = new userData();
+				
+				//setup logged in state
+				loggedInState = new State();
+				loggedInState.name = LOGGED_IN_STATE;
+				loggedInState.basedOn = LOGGED_OUT_STATE;
+				loggedInState.overrides = [new SetProperty(loginVBox, "height", 0), 
+											new SetProperty(loggedInVBox, "height", "100%")];
+				states.push(loggedInState);
+				
+				//setup logged out state
+				loggedOutState = new State();
+				loggedOutState.name = LOGGED_OUT_STATE;
+				loggedOutState.overrides = [new SetProperty(loginVBox, "height", "100%"), 
+											new SetProperty(loggedInVBox, "height", 0)];
+				states.push(loggedOutState);
+				
+				//default to logged out state
+				currentState = LOGGED_OUT_STATE;
+				
+				//setup validators
+				usernameValidator = new StringValidator();
+				usernameValidator.source = usernameInput;
+				usernameValidator.required = true;
+				usernameValidator.property="text";
+				usernameValidator.minLength = Constant.USERNAME_MIN_LENGTH;
+				usernameValidator.maxLength = Constant.USERNAME_MAX_LENGTH;
+				usernameValidator.tooShortError = Constant.USERNAME_SHORT_ERROR;
+				usernameValidator.tooLongError = Constant.USERNAME_LONG_ERROR;
+				
+				passwordValidator = new StringValidator();
+				passwordValidator.source = passwordInput;
+				passwordValidator.required = true;
+				passwordValidator.property = "text";
+				passwordValidator.minLength = Constant.PASSWORD_MIN_LENGTH;
+				passwordValidator.maxLength = Constant.PASSWORD_MAX_LENGTH;
+				passwordValidator.tooShortError = Constant.PASSWORD_SHORT_ERROR;
+				passwordValidator.tooLongError = Constant.PASSWORD_LONG_ERROR;
+				
+				usernameValid = new Boolean();
+				passwordValid = new Boolean();	
+				
+				resetForm();			
+			}
+			
+			/**
+			 * if user exists get the information
+			 * otherwise reset password field.
+			 * @private
+			 * @param username:ResultEvent			
+			 */
+			private function onAuthenticateResult(evt:ResultEvent):void {
+				if(evt.result.toString() != Constant.ANONYMOUS_USER){
+					zendAMF.getUserData();
+				}else {
+					passwordInput.text = "";
+					loginButton.enabled = false;
+					Alert.show(Constant.LOGIN_ERROR);
+				}
+			}
+			
+			/**
+			 * send userData to parent.
+			 * @private
+			 * @param userData:ResultEvent
+			 */
+			private function getUserDataHandler(evt:ResultEvent):void{
+				user = evt.result as userData; 
+				currentState = LOGGED_IN_STATE;
+				dispatchEvent(new LoginEvent(user));
+				if(rememberMe.selected){
+					CookieUtil.setCookie("photography_allankhall_user", user.username, 10);
+				}else{
+					CookieUtil.setCookie("photography_allankhall_user", user.username, -1);
+				}
+			}
+		
+			/**
+			 * handle error returned from AMF.
+			 * @private
+			 * @param error :FaultEvent
+			 */
+			private function onError(err:FaultEvent):void {
+				//Alert.show(err.message.toString(),"ERROR!");
+				Alert.show(Constant.GENERAL_ERROR);
+				Alert.show(err.toString());
+			}
+		
+			/**
+			 * see if valid credentials were supplied.
+			 * @private
+			 */
+			private function callZend():void {
+				
+				try{
+					zendAMF.authenticate(usernameInput.text, passwordInput.text);
+				}catch(e:TypeError){
+					//typeError always thrown here
+					//just ignore as it does not appear to affect
+					//anything
+				}
+			}
+			
+			/**
+			 * enable or disable submit button 
+			 * by validating text inputs.
+			 * @private
+			 */
+			private function enableSubmit():void{
+				loginButton.enabled  = false;
+				usernameValid = ((usernameValidator.validate()).type == ValidationResultEvent.VALID);
+				passwordValid = ((passwordValidator.validate()).type == ValidationResultEvent.VALID);
+				if(usernameValid && passwordValid){
+					loginButton.enabled = true;
+				}
+			}
+			
+			/**
+			 * disable form and send register/forgot password message
+			 * to appliocation. 
+			 * @private
+			 * @param link clicked as String
+			 */
+			private function loginHelper(link:String):void{
+				enableForm(!(link == Constant.REGISTER_LINK || link == Constant.FORGOT_PASSWORD_LINK));
+				dispatchEvent(new LoginHelperEvent(link));
+			}
+			
+			/**
+			 * reset form and maker service call
+			 * @private
+		     */
+			private function logout():void{
+				resetForm();
+				loginHelper(Constant.LOGOUT_LINK);
+				zendAMF.logout();
+
+			}
+			
+			/**
+			 * reset errors enable inputs and links
+			 * @private
+			 */
+			private function enableForm(enable:Boolean):void{
+				usernameInput.errorString = "";
+				usernameInput.enabled = enable;
+				passwordInput.errorString = "";
+				passwordInput.enabled = enable;
+				registerLink.enabled = enable;
+				forgotPasswordLink.enabled = enable;
+			}
+			
+		]]>
+	</fx:Script>
+
+	
+	<!--    form     -->
+	<fx:Declarations>
+
+		<mx:RemoteObject 
+			id="zendAMF" 
+			destination="zend" 
+			showBusyCursor="true" 
+			source="test_class">
+			<mx:method 
+				name="authenticate" 
+				result="onAuthenticateResult(event)"  
+				fault="onError(event)">
+				<mx:arguments>
+					<user>
+						{null}
+					</user>
+					<password>
+						{null}
+					</password>
+				</mx:arguments>
+			</mx:method>
+			<mx:method 
+				name="getUserData" 
+				result="getUserDataHandler(event)"  
+				fault="onError(event)">
+			</mx:method>
+		</mx:RemoteObject>
+	</fx:Declarations>
+	<mx:transitions>
+		<mx:Transition fromState = "{LOGGED_IN_STATE}" toState = "{LOGGED_OUT_STATE}">
+			<mx:Sequence target="{loginVBox}">
+				<mx:Fade alphaFrom="0.0" alphaTo="1.0" duration ="1000" />
+			</mx:Sequence>
+		</mx:Transition>
+		<mx:Transition fromState = "{LOGGED_OUT_STATE}" toState = "{LOGGED_IN_STATE}">
+			<mx:Sequence target="{loginVBox}">
+				<mx:Fade alphaFrom="1.0" alphaTo="0.0" duration ="1000" />
+			</mx:Sequence>
+		</mx:Transition>
+	</mx:transitions>
+	<mx:VBox id = "loginVBox">
+		<mx:Label text = "LOGIN"/>
+		<mx:Form id="loginForm">
+			<mx:FormItem required="true" label = "username : ">
+				<mx:TextInput 
+						id="usernameInput" 
+						change = "enableSubmit()" 
+						restrict = "{Constant.ALPHANUMERIC_UNDERSCORE_REGEX}" />
+			</mx:FormItem>
+			<mx:FormItem required="true" label = "password : ">
+				<mx:TextInput 
+						id="passwordInput" 
+						displayAsPassword="true" 
+						change="enableSubmit()"/>
+			</mx:FormItem>
+			<mx:FormItem>		
+				<mx:CheckBox id = "rememberMe" label="remember me"/>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:Button
+				id = "loginButton" 
+				label="login" click="callZend()" 
+				enabled = "false" />
+		<mx:HBox>
+			<mx:LinkButton 
+					id = "registerLink" 
+					label = "{Constant.REGISTER_LINK}" 
+					click = 'loginHelper(Constant.REGISTER_LINK)'/>
+			<mx:Label text = "{Constant.LINK_SEPARATOR}"/>
+			<mx:LinkButton 
+					id = "forgotPasswordLink" 
+					label = "{Constant.FORGOT_PASSWORD_LINK}"
+					click = 'loginHelper(Constant.FORGOT_PASSWORD_LINK)'/>
+		</mx:HBox>
+	</mx:VBox>
+	<mx:VBox id = "loggedInVBox">
+		<mx:Label id = "userLabel" text = "Welcome {user.firstName} {user.lastName}" /> 
+			<mx:LinkButton
+					id = "logoutLink"
+					label = "{Constant.LOGOUT_LINK}"
+					click = "logout()"/>
+	</mx:VBox>
+
+</mx:VBox>
